@@ -7,6 +7,11 @@ output: html_document
 
 ## Synopsis
 
+This analysis is to assess the impact, both in terms of human fatalities/injuries and economic damage, that extreme weather events cause in the US.  The data for this analysis was obtained from [U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database](U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database).  The analysis focuses on answering two questions:  
+
+- Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+- Across the United States, which types of events have the greatest economic consequences?
+
 ## Data Processing
 
 Load libraries required for data cleanse and analysis
@@ -21,13 +26,17 @@ library("knitr")
 library("stringr")
 ```
 
-
+Download data from source and read into workspace.
 
 ```{r}
 ## download and read in data
 download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2","Stormdata",method="curl")
 storm_data<-read.csv("Stormdata",header=TRUE)
 ```
+
+For ease of cleanse and analysis the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.
+
+*Human Impact*
 
 ```{r,echo=TRUE}
 ## filter based on fatalities or injuries != 0
@@ -46,10 +55,27 @@ unique_human$Event<-as.character(unique_human$Event)
 unique_human$Event<-toupper(unique_human$Event)
 ```
 
+*Economic Impact*
+
 ```{r,echo=TRUE}
 ## create data set where property or crop damage != 0
 economic<-filter(storm_data,PROPDMG!=0|CROPDMG!=0)
+
+## create list of unique event types from economic data
+unique_economic<-as.data.frame(table(economic$EVTYPE))
+## run str_trim on values
+unique_economic<-mutate(unique_economic,event2=str_trim(Var1))
+## sort by frequency
+unique_economic<-arrange(unique_economic,desc(Freq))
 ```
+
+**Creation of Helper Functions**
+
+A number of helper functions were created to run against the EVTYPE data to standardise the values.
+
+A variable of the 48 standard values from the [National Weather Service Storm Data Documentation] (https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+This was then used in a helper function during analysis to identify progress in standardising values.
 
 
 ```{r,echo=TRUE}
@@ -59,11 +85,8 @@ standard_events<-c("Astronomical Low Tide","Avalanche","Blizzard","Coastal Flood
 
 ```
 
-**Creation of Helper Functions
-
-A number of helper functions were created to run against the EVTYPE data to standardise the values.
-
 The functions were written individually based on the standard values so that the order they are applied to the different data subsets can be varied and, if some of the standard values do not exist in any subset then the function is not required at all.
+
 
 ```{r,echo=TRUE}
 ## create number of helper functions to clean event types
@@ -72,6 +95,16 @@ flood<-function(event_type){
   flood_check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl(" fld",event_type,ignore.case=TRUE))&!(grepl("coastal",event_type,ignore.case=TRUE)|grepl("flash",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Flood"
+    return(out)
+  }
+  return(out)
+}
+
+flash_flood<-function(event_type){
+  out<-event_type
+  check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl("fld",event_type,ignore.case=TRUE))&grepl("flash",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"Flash Flood"
     return(out)
   }
   return(out)
@@ -156,9 +189,19 @@ excessive_heat<-function(event_type){
 
 wildfire<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("wild",event_type,ignore.case=TRUE))&grepl("fire",event_type,ignore.case=TRUE)
+  flood_check<-(grepl("wild",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Wildfire"
+    return(out)
+  }
+  return(out)
+}
+
+landslide_debris_flow<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("slide",event_type,ignore.case=TRUE))|(grepl("debris",event_type,ignore.case=TRUE)&grepl("flow",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Debris Flow"
     return(out)
   }
   return(out)
@@ -208,7 +251,19 @@ surf<-function(event_type){
   }
   return(out)
 }
+
+surge<-function(event_type){
+  out<-event_type
+  check<-grepl("surge",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"STORM SURGE/TIDE"
+    return(out)
+  }
+  return(out)
+}
 ```
+
+The helper functions were run in order of event frequency down the event table until all listed events had a matching standardised value.  This was done on the human data and the economic data seperately.
 
 
 ```{r,echo=TRUE}
@@ -241,16 +296,17 @@ unique_human<-mutate(unique_human,event13=mapply(surf,event12))
 
 
 ```{r,echo=TRUE}
-## create list of unique event types from economic data
-unique_economic<-as.data.frame(table(economic$EVTYPE))
-## run str_trim on values
-unique_economic<-mutate(unique_economic,event2=str_trim(Var1))
-## sort by frequency
-unique_economic<-arrange(unique_economic,desc(Freq))
-
 ## start running cleaning functions starting with most frequent
 unique_economic<-mutate(unique_economic,event3=mapply(thunderstorm_wind,event2))
 unique_economic<-mutate(unique_economic,event4=mapply(tornado,event3))
 unique_economic<-mutate(unique_economic,event5=mapply(flood,event4))
+unique_economic<-mutate(unique_economic,event6=mapply(high_wind,event5))
+unique_economic<-mutate(unique_economic,event7=mapply(wildfire,event6))
+## remove working columns
+unique_economic<-select(unique_economic,-(event2:event6))
+## continue to clean
+unique_economic<-mutate(unique_economic,event8=mapply(flash_flood,event7))
+unique_economic<-mutate(unique_economic,event9=mapply(landslide_debris_flow,event8))
+unique_economic<-mutate(unique_economic,event10=mapply(surge,event9))
 ```
 
