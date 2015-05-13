@@ -1,0 +1,256 @@
+---
+title: "Evaluation of Population Health and Economic Damage caused by Storms and Severe Weather"
+author: "girldewhirle"
+date: "Monday, May 11, 2015"
+output: html_document
+---
+
+## Synopsis
+
+## Data Processing
+
+Load libraries required for data cleanse and analysis
+
+```{r,echo=TRUE}
+## load libraries
+library("plyr")
+library("dplyr")
+library("tidyr")
+library("lubridate")
+library("knitr")
+library("stringr")
+```
+
+
+
+```{r}
+## download and read in data
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2","Stormdata",method="curl")
+storm_data<-read.csv("Stormdata",header=TRUE)
+```
+
+```{r,echo=TRUE}
+## filter based on fatalities or injuries != 0
+human<-filter(storm_data,FATALITIES!=0|INJURIES!=0)
+## create table of unique event types from the human data set
+unique_human<-as.data.frame(table(human$EVTYPE))
+## remove instances that have frequency of zero
+unique_human<-filter(unique_human,Freq!=0)
+## arrange in descending frequency as will start running functions based on most common types
+unique_human<-arrange(unique_human,desc(Freq))
+## rename column
+colnames(unique_human)[1]<-"Event"
+## convert Event column to character
+unique_human$Event<-as.character(unique_human$Event)
+## convert Event column to upper case
+unique_human$Event<-toupper(unique_human$Event)
+```
+
+```{r,echo=TRUE}
+## create data set where property or crop damage != 0
+economic<-filter(storm_data,PROPDMG!=0|CROPDMG!=0)
+```
+
+
+```{r,echo=TRUE}
+## create variable of standard event values from documentation
+standard_events<-c("Astronomical Low Tide","Avalanche","Blizzard","Coastal Flood","Cold/Wind Chill","Debris Flow","Dense Fog","Dense Smoke","Drought","Dust Devil","Dust Storm","Excessive Heat","Extreme Cold/Wind Chill","Flash Flood","Flood","Frost/Freeze","Funnel Cloud","Freezing Fog","Hail","Heat","Heavy Rain","Heavy Snow","High Surf","High Wind","Hurricane (Typhoon)","Ice Storm","Lake-Effect Snow","Lakeshore Flood","Lightning","Marine Hail","Marine High Wind","Marine Strong Wind","Marine Thunderstorm Wind","Rip Current","Seiche","Sleet","Storm Surge/Tide","Strong Wind","Thunderstorm Wind","Tornado","Tropical Depression","Tropical Storm","Tsunami","Volcanic Ash","Waterspout","Wildfire","Winter Storm","Winter Weather")
+## create helper function to check if values are standardised sucessfully
+
+```
+
+**Creation of Helper Functions
+
+A number of helper functions were created to run against the EVTYPE data to standardise the values.
+
+The functions were written individually based on the standard values so that the order they are applied to the different data subsets can be varied and, if some of the standard values do not exist in any subset then the function is not required at all.
+
+```{r,echo=TRUE}
+## create number of helper functions to clean event types
+flood<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl(" fld",event_type,ignore.case=TRUE))&!(grepl("coastal",event_type,ignore.case=TRUE)|grepl("flash",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Flood"
+    return(out)
+  }
+  return(out)
+}
+
+snow<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("snow",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Heavy Snow"
+    return(out)
+  }
+  
+  return(out)
+}
+
+high_wind<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("high wind",event_type,ignore.case=TRUE)|grepl("gusty",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"High Wind"
+    return(out)
+  }
+  
+  return(out)
+}
+
+rip_current<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("rip current",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Rip Current"
+    return(out)
+  }
+  
+  return(out)
+}
+
+
+thunderstorm_wind<-function(event_type){
+  out<-event_type
+  flood_check<-((grepl("thunderstorm wind",event_type,ignore.case=TRUE)|grepl("TSTM wind",event_type,ignore.case=TRUE)|grepl("thunder",event_type,ignore.case=TRUE))&!grepl("marine",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Thunderstorm Wind"
+    return(out)
+  }
+  
+  return(out)
+}
+
+tornado<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("tornado",event_type,ignore.case=TRUE)&!grepl("marine",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Tornado"
+    return(out)
+  }
+  
+  return(out)
+}
+
+lightning<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("lightning",event_type,ignore.case=TRUE)&!grepl("marine",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Lightning"
+    return(out)
+  }
+  
+  return(out)
+}
+
+excessive_heat<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl(" heat",event_type,ignore.case=TRUE))|grepl("heat wave",event_type,ignore.case=TRUE)
+  if (flood_check==TRUE){
+    out<-"Excessive Heat"
+    return(out)
+  }
+  return(out)
+}
+
+wildfire<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("wild",event_type,ignore.case=TRUE))&grepl("fire",event_type,ignore.case=TRUE)
+  if (flood_check==TRUE){
+    out<-"Wildfire"
+    return(out)
+  }
+  return(out)
+}
+
+extreme_cold<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("cold",event_type,ignore.case=TRUE))|grepl("wind chill",event_type,ignore.case=TRUE)|grepl("hypoth",event_type,ignore.case=TRUE)
+  if (flood_check==TRUE){
+    out<-"Extreme Cold/Wind Chill"
+    return(out)
+  }
+  return(out)
+}
+
+fog<-function(event_type){
+  out<-event_type
+  flood_check<-(grepl("fog",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    freeze<-grepl("freeze",event_type,ignore.case=TRUE)
+    if (freeze==TRUE){
+      out<-"Freezing Fog"
+      return(out)
+    }
+    out<-"Dense Fog"    
+    return(out)
+  }
+  return(out)
+}
+
+winter_weather<-function(event_type){
+  out<-event_type
+  check<-grepl("winter",event_type,ignore.case=TRUE)&grepl("weather",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"Winter Weather"
+    return(out)
+  }
+  return(out)
+}
+
+surf<-function(event_type){
+  out<-event_type
+  check<-grepl("surf",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"High Surf"
+    return(out)
+  }
+  return(out)
+}
+```
+
+
+```{r,echo=TRUE}
+## run helper functions on events from human to create a merge table
+## as work through remove working columns
+unique_human<-mutate(unique_human,event2=mapply(tornado,Event))
+unique_human<-mutate(unique_human,event3=mapply(lightning,event2))
+unique_human<-mutate(unique_human,event4=mapply(thunderstorm_wind,event3))
+unique_human<-mutate(unique_human,event5=mapply(excessive_heat,event4))
+## trim working columns
+unique_human<-select(unique_human,-(event2:event4))
+## continue creating merge table
+unique_human<-mutate(unique_human,event6=mapply(high_wind,event5))
+unique_human<-mutate(unique_human,event7=mapply(flood,event6))
+unique_human<-mutate(unique_human,event8=mapply(rip_current,event7))
+## trim working columns
+unique_human<-select(unique_human,-(event5:event7))
+## continue creating merge table
+unique_human<-mutate(unique_human,eventsnow=mapply(snow,event8))
+unique_human<-mutate(unique_human,event9=mapply(wildfire,eventsnow))
+unique_human<-mutate(unique_human,event10=mapply(extreme_cold,event9))
+unique_human<-mutate(unique_human,event11=mapply(fog,event10))
+unique_human<-mutate(unique_human,event12=mapply(fog,event11))
+## trim working columns
+unique_human<-select(unique_human,-(event8:event11))
+## continue creating merge table
+unique_human<-mutate(unique_human,event13=mapply(surf,event12))
+```
+
+
+
+```{r,echo=TRUE}
+## create list of unique event types from economic data
+unique_economic<-as.data.frame(table(economic$EVTYPE))
+## run str_trim on values
+unique_economic<-mutate(unique_economic,event2=str_trim(Var1))
+## sort by frequency
+unique_economic<-arrange(unique_economic,desc(Freq))
+
+## start running cleaning functions starting with most frequent
+unique_economic<-mutate(unique_economic,event3=mapply(thunderstorm_wind,event2))
+unique_economic<-mutate(unique_economic,event4=mapply(tornado,event3))
+unique_economic<-mutate(unique_economic,event5=mapply(flood,event4))
+```
+
