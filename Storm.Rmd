@@ -155,6 +155,17 @@ thunderstorm_wind<-function(event_type){
   return(out)
 }
 
+marine_thunderstorm_wind<-function(event_type){
+  out<-event_type
+  flood_check<-((grepl("thunderstorm wind",event_type,ignore.case=TRUE)|grepl("TSTM wind",event_type,ignore.case=TRUE)|grepl("thunder",event_type,ignore.case=TRUE))&grepl("marine",event_type,ignore.case=TRUE))
+  if (flood_check==TRUE){
+    out<-"Marine Thunderstorm Wind"
+    return(out)
+  }
+  
+  return(out)
+}
+
 tornado<-function(event_type){
   out<-event_type
   flood_check<-(grepl("tornado",event_type,ignore.case=TRUE)&!grepl("marine",event_type,ignore.case=TRUE))
@@ -261,6 +272,26 @@ surge<-function(event_type){
   }
   return(out)
 }
+
+hail<-function(event_type){
+  out<-event_type
+  check<-grepl("hail",event_type,ignore.case=TRUE)&!grepl("marine",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"Hail"
+    return(out)
+  }
+  return(out)
+}
+
+hurricane<-function(event_type){
+  out<-event_type
+  check<-grepl("cane",event_type,ignore.case=TRUE)|grepl("phoon",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"Hurricane (Typhoon)"
+    return(out)
+  }
+  return(out)
+}
 ```
 
 The helper functions were run in order of event frequency down the event table until all listed events had a matching standardised value.  This was done on the human data and the economic data seperately.
@@ -308,5 +339,12 @@ unique_economic<-select(unique_economic,-(event2:event6))
 unique_economic<-mutate(unique_economic,event8=mapply(flash_flood,event7))
 unique_economic<-mutate(unique_economic,event9=mapply(landslide_debris_flow,event8))
 unique_economic<-mutate(unique_economic,event10=mapply(surge,event9))
+## remove working columns
+unique_economic<-select(unique_economic,-(event7:event9))
+## continue to clean
+unique_economic<-mutate(unique_economic,event11=mapply(hurricane,event10))
+unique_economic<-mutate(unique_economic,event12=mapply(winter_weather,event11))
+unique_economic<-mutate(unique_economic,event13=mapply(snow,event12))
+unique_economic<-mutate(unique_economic,event14=mapply(marine_thunderstorm_wind,event13))
 ```
 
