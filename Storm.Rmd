@@ -306,36 +306,6 @@ hurricane<-function(event_type){
 
 The helper functions were run in order of event frequency down the event table until all listed events had a matching standardised value.  This was done on the human data and the economic data seperately.
 
-
-```{r,echo=TRUE}
-## first run of human data - all values - may need to remove from report
-
-## run helper functions on events from human to create a merge table
-## as work through remove working columns
-unique_human<-mutate(unique_human,event2=mapply(tornado,Event))
-unique_human<-mutate(unique_human,event3=mapply(lightning,event2))
-unique_human<-mutate(unique_human,event4=mapply(thunderstorm_wind,event3))
-unique_human<-mutate(unique_human,event5=mapply(excessive_heat,event4))
-## trim working columns
-unique_human<-select(unique_human,-(event2:event4))
-## continue creating merge table
-unique_human<-mutate(unique_human,event6=mapply(high_wind,event5))
-unique_human<-mutate(unique_human,event7=mapply(flood,event6))
-unique_human<-mutate(unique_human,event8=mapply(rip_current,event7))
-## trim working columns
-unique_human<-select(unique_human,-(event5:event7))
-## continue creating merge table
-unique_human<-mutate(unique_human,eventsnow=mapply(snow,event8))
-unique_human<-mutate(unique_human,event9=mapply(wildfire,eventsnow))
-unique_human<-mutate(unique_human,event10=mapply(extreme_cold,event9))
-unique_human<-mutate(unique_human,event11=mapply(fog,event10))
-unique_human<-mutate(unique_human,event12=mapply(fog,event11))
-## trim working columns
-unique_human<-select(unique_human,-(event8:event11))
-## continue creating merge table
-unique_human<-mutate(unique_human,event13=mapply(surf,event12))
-```
-
 ```{r,echo=TRUE}
 ## create subset only including event type, number of fatalities, number of injuries and reference number
 minimal_human<-select(human,EVTYPE,FATALITIES,INJURIES,REFNUM)
