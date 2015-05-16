@@ -24,14 +24,16 @@ library("tidyr")
 library("lubridate")
 library("knitr")
 library("stringr")
+library("ggplot2")
 ```
 
-Download data from source and read into workspace.
+Start from presumption that data is already in working director and read into workspace.
 
-```{r}
-## download and read in data
-download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2","Stormdata",method="curl")
+```{r,echo=TRUE}
+## read in data
 storm_data<-read.csv("Stormdata",header=TRUE)
+## convert BGN_Date to date formate
+storm_data$BGN_DATE<-mdy_hms(storm_data$BGN_DATE)
 ```
 
 For ease of cleanse and analysis the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.
@@ -61,12 +63,6 @@ unique_human$Event<-toupper(unique_human$Event)
 ## create data set where property or crop damage != 0
 economic<-filter(storm_data,PROPDMG!=0|CROPDMG!=0)
 
-## create list of unique event types from economic data
-unique_economic<-as.data.frame(table(economic$EVTYPE))
-## run str_trim on values
-unique_economic<-mutate(unique_economic,event2=str_trim(Var1))
-## sort by frequency
-unique_economic<-arrange(unique_economic,desc(Freq))
 ```
 
 **Creation of Helper Functions**
@@ -81,7 +77,17 @@ This was then used in a helper function during analysis to identify progress in 
 ```{r,echo=TRUE}
 ## create variable of standard event values from documentation
 standard_events<-c("Astronomical Low Tide","Avalanche","Blizzard","Coastal Flood","Cold/Wind Chill","Debris Flow","Dense Fog","Dense Smoke","Drought","Dust Devil","Dust Storm","Excessive Heat","Extreme Cold/Wind Chill","Flash Flood","Flood","Frost/Freeze","Funnel Cloud","Freezing Fog","Hail","Heat","Heavy Rain","Heavy Snow","High Surf","High Wind","Hurricane (Typhoon)","Ice Storm","Lake-Effect Snow","Lakeshore Flood","Lightning","Marine Hail","Marine High Wind","Marine Strong Wind","Marine Thunderstorm Wind","Rip Current","Seiche","Sleet","Storm Surge/Tide","Strong Wind","Thunderstorm Wind","Tornado","Tropical Depression","Tropical Storm","Tsunami","Volcanic Ash","Waterspout","Wildfire","Winter Storm","Winter Weather")
+## convert standards to upper case
+standard_events<-toupper(standard_events)
 ## create helper function to check if values are standardised sucessfully
+check_if_std<-function(event_type){
+  out<-"not std"
+  if (event_type %in% standard_events){
+    out<-"std"
+    return(out)
+  }
+  return(out)
+}
 
 ```
 
@@ -95,6 +101,16 @@ flood<-function(event_type){
   flood_check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl(" fld",event_type,ignore.case=TRUE))&!(grepl("coastal",event_type,ignore.case=TRUE)|grepl("flash",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Flood"
+    return(out)
+  }
+  return(out)
+}
+
+heavy_rain<-function(event_type){
+  out<-event_type
+  check<-grepl("rain",event_type,ignore.case=TRUE)|grepl("wetness",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"Heavy Rain"
     return(out)
   }
   return(out)
@@ -302,13 +318,66 @@ hurricane<-function(event_type){
   }
   return(out)
 }
+
+frost_freeze<-function(event_type){
+  out<-event_type
+  check<-grepl("freeze",event_type,ignore.case=TRUE)|grepl("frost",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"Frost/Freeze"
+    return(out)
+  }
+  return(out)
+}
+
+tropical_storm<-function(event_type){
+  out<-event_type
+  check<-grepl("tropical",event_type,ignore.case=TRUE)&grepl("storm",event_type,ignore.case=TRUE)
+  if (check==TRUE){
+    out<-"Tropical Storm"
+    return(out)
+  }
+  return(out)
+}
 ```
 
-The helper functions were run in order of event frequency down the event table until all listed events had a matching standardised value.  This was done on the human data and the economic data seperately.
+```{r,echo=TRUE}
+## function to convert damage values to multiplier
+convert_exp<-function(value){
+  out<-1
+  value<-as.character(value)
+  if (value=="K"|value=="k"){
+    out<-1000
+    return(out)
+  }
+  if (value=="M"|value=="m"){
+    out<-1000000
+    return(out)
+  }
+  if (value=="B"|value=="b"){
+    out<-1000000000
+    return(out)
+  }
+  return(out)
+}
+```
+
+For human data the number of fatalities and injuries per event were added together.  The cutoff value for the top 1% of total human impact was calculated using the quantile function.  The human data was then subset into events where the total human impact was greater than the 1% cut off to give the top 1% of events by human impact.
+
+For economic data the exponential values were converted to numerical values (K=1,000, M=1,000,000, B=1,000,000,000) and then used to multiply their respective property and crop damage values.  These numerical values were then added together to give a total amount of economic damage for each event.  The cutoff value for the top 1% of total economic impact was calculated using the quantile function.  The economic data was then subset into events where the total economic impact was greater than the 1% cut off to give the top 1% of events by economic impact.
+
+From the two 'top 1%' subsets - human and economic - tables of unique event types and their frequencies were extracted.
+
+The helper functions were run on these tables in order of event frequency until all listed events had a matching standardised value.  This was done on the human data and the economic data seperately.
+
+When all the values had been standardised (a helper function was used to run against the event types as they were cleansed to ascertain if they met the standards or not) the event mapping tables were tidied and then merged back into their respective 'top 1%' tables.
+
+The 'top 1%' tables with the standard event types were used as the clean data for analysis.
+
+Summary tables for human and economic impact were then created using the summarise function and used for presentation below.
 
 ```{r,echo=TRUE}
 ## create subset only including event type, number of fatalities, number of injuries and reference number
-minimal_human<-select(human,EVTYPE,FATALITIES,INJURIES,REFNUM)
+minimal_human<-select(human,EVTYPE,BGN_DATE,FATALITIES,INJURIES,REFNUM)
 ## create variable which is a result of fatalities + injuries
 minimal_human<-mutate(minimal_human,fat_plus_inj=FATALITIES+INJURIES)
 ## find value for top 1%
@@ -361,33 +430,73 @@ Mean_Human_Impact<-arrange(Mean_Human_Impact,desc(Total_Human_Impact))
 ```
 
 ```{r,echo=TRUE}
+## create subset of economic with only event type, damage values and refnum
+minimal_economic<-select(economic,EVTYPE,BGN_DATE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP)
+## convert exp values to a numeric multiplier
+minimal_economic<-mutate(minimal_economic,prop_multi=mapply(convert_exp,PROPDMGEXP),crop_multi=mapply(convert_exp,CROPDMGEXP))
+## calculate damage for property and crops
+minimal_economic<-mutate(minimal_economic,prop_damage=PROPDMG*prop_multi,crop_damage=CROPDMG*crop_multi)
+## combine property and crop damage
+minimal_economic<-mutate(minimal_economic,total_damage=prop_damage+crop_damage)
+## identify top 1% cut off
+top_damage<-quantile(minimal_economic$total_damage,prob=0.99)
+## subset based on greater than cutoff
+economic_damage<-filter(minimal_economic,total_damage>top_damage)
+## create merge table based on unique values
+unique_economic_top<-as.data.frame(table(economic_damage$EVTYPE))
+## remove zero occurances
+unique_economic_top<-filter(unique_economic_top,Freq>0)
+## sort by Freq
+unique_economic_top<-arrange(unique_economic_top,desc(Freq))
+## convert Var1 to character
+unique_economic_top$Var1<-as.character(unique_economic_top$Var1)
+## start applying helper functions in order - tornado, flood, flash flood, hail, drought(already standard), ice storm(already standard), tstm wind, hurricane, wildfire, extreme cold/wind chill,landslide, high winds, coastal flooding
+unique_economic_top<-mutate(unique_economic_top,ev2=mapply(tornado,Var1))%>%
+  mutate(ev3=mapply(flood,ev2))%>%
+  mutate(ev4=mapply(flash_flood,ev3))%>%
+  mutate(ev5=mapply(hail,ev4))%>%
+  mutate(ev6=mapply(thunderstorm_wind,ev5))%>%
+  mutate(ev7=mapply(hurricane,ev6))%>%
+  mutate(ev8=mapply(wildfire,ev7))%>%
+  mutate(ev9=mapply(extreme_cold,ev8))%>%
+  mutate(ev10=mapply(landslide_debris_flow,ev9))%>%
+  mutate(ev11=mapply(high_wind,ev10))%>%
+  mutate(ev12=mapply(surge,ev11))%>%
+  mutate(ev13=mapply(frost_freeze,ev12))%>%
+  mutate(ev14=mapply(coastal_flood,ev13))%>%
+  mutate(ev15=mapply(heavy_rain,ev14))%>%
+  mutate(ev16=mapply(tropical_storm,ev15))
+## create table with original and revised values
+economic_merge<-select(unique_economic_top,Var1,ev16)
+## rename column 1
+colnames(economic_merge)[1]<-"EVTYPE"
+colnames(economic_merge)[2]<-"new_event"
+## join with economic damage data set
+economic_table<-join(economic_damage,economic_merge)
+## remove original event type
+economic_table<-select(economic_table,new_event,BGN_DATE,PROPDMG:total_damage)
+## group by event type
+economic_table<-group_by(economic_table,new_event)
+## create summary table
+economic_summary<-summarise(economic_table,sum(prop_damage),mean(prop_damage),sum(crop_damage),mean(crop_damage),sum(total_damage),mean(total_damage))
+## rename columns
+colnames(economic_summary)[2]<-"Sum_Prop_DMG"
+colnames(economic_summary)[3]<-"Mean_Prop_DMG"
+colnames(economic_summary)[4]<-"Sum_Crop_DMG"
+colnames(economic_summary)[5]<-"Mean_Crop_DMG"
+colnames(economic_summary)[6]<-"Sum_Total_DMG"
+colnames(economic_summary)[7]<-"Mean_Total_DMG"
+## arrange by sum total damage
+economic_summary<-arrange(economic_summary,desc(Sum_Total_DMG))
+```
+
+## Results
+
+```{r,echo=TRUE}
 ## display table
 kable(Mean_Human_Impact)
 ```
 
-
 ```{r,echo=TRUE}
-## start running cleaning functions starting with most frequent
-unique_economic<-mutate(unique_economic,event3=mapply(thunderstorm_wind,event2))
-unique_economic<-mutate(unique_economic,event4=mapply(tornado,event3))
-unique_economic<-mutate(unique_economic,event5=mapply(flood,event4))
-unique_economic<-mutate(unique_economic,event6=mapply(high_wind,event5))
-unique_economic<-mutate(unique_economic,event7=mapply(wildfire,event6))
-## remove working columns
-unique_economic<-select(unique_economic,-(event2:event6))
-## continue to clean
-unique_economic<-mutate(unique_economic,event8=mapply(flash_flood,event7))
-unique_economic<-mutate(unique_economic,event9=mapply(landslide_debris_flow,event8))
-unique_economic<-mutate(unique_economic,event10=mapply(surge,event9))
-## remove working columns
-unique_economic<-select(unique_economic,-(event7:event9))
-## continue to clean
-unique_economic<-mutate(unique_economic,event11=mapply(hurricane,event10))
-unique_economic<-mutate(unique_economic,event12=mapply(winter_weather,event11))
-unique_economic<-mutate(unique_economic,event13=mapply(snow,event12))
-unique_economic<-mutate(unique_economic,event14=mapply(marine_thunderstorm_wind,event13))
-unique_economic<-mutate(unique_economic,event15=mapply(extreme_cold,event14))
-unique_economic<-mutate(unique_economic,event16=mapply(fog,event15))
-unique_economic<-mutate(unique_economic,event17=mapply(coastal_flood,event16))
+kable(economic_summary)
 ```
-
