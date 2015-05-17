@@ -25,10 +25,11 @@ library("lubridate")
 library("knitr")
 library("stringr")
 library("ggplot2")
-library("reshape")
+library("reshape2")
+library("lattice")
 ```
 
-Start from presumption that data is already in working director and read into workspace.
+Start from presumption that data is already in working directory and read into workspace.
 
 ```{r,echo=TRUE}
 ## read in data
@@ -420,7 +421,7 @@ Mean_Human_Impact<-arrange(Mean_Human_Impact,desc(Total_Human_Impact))
 
 ```{r,echo=TRUE}
 ## create subset of economic with only event type, damage values and refnum
-minimal_economic<-select(economic,EVTYPE,BGN_DATE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP)
+minimal_economic<-select(economic,EVTYPE,BGN_DATE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP,REFNUM)
 ## convert exp values to a numeric multiplier
 minimal_economic<-mutate(minimal_economic,prop_multi=mapply(convert_exp,PROPDMGEXP),crop_multi=mapply(convert_exp,CROPDMGEXP))
 ## calculate damage for property and crops
@@ -482,7 +483,7 @@ economic_summary<-arrange(economic_summary,desc(Sum_Total_DMG))
 The mapping table for cleaning the event types in the human data is:
 
 ```{r,echo=TRUE}
-kable(unique_top_human)
+kable(arrange(unique_top_human,EVTYPE),caption="Merge Table for Cleaning EVTYPE for Human Data")
 ```
 
 The mapping table for cleaning the event types in the economic data is:
@@ -494,8 +495,22 @@ kable(arrange(economic_merge,EVTYPE),caption="Merge Table for Cleaning EVTYPE fo
 ```{r,echo=TRUE}
 ## melt data to allow for multi series plots
 human_top_melted<-melt(top_human_impact,id=c("EVTYPE","BGN_DATE","REFNUM"))
-## melt summary table as well
-melted_mean_human<-melt(Mean_Human_Impact,id.vars = "cleaned_EVTYPE")
+## convert Mean_Human_Impact to data frame and then melt
+Mean_Human_Impact<-as.data.frame(Mean_Human_Impact)
+## melt summary table
+melted_human_impact<-melt(Mean_Human_Impact,id.vars="cleaned_EVTYPE")
+```
+
+```{r,echo=TRUE}
+## melt data to allow for multi series plots
+## need to convert to data frame first
+economic_table<-as.data.frame(economic_table)
+## melt data
+melted_economic_table<-melt(economic_table,id.vars=c("new_event","BGN_DATE","REFNUM"))
+## convert economic summary to data frame
+economic_summary<-as.data.frame(economic_summary)
+## melt data
+melted_economic_summary<-melt(economic_summary,id.vars = "new_event")
 ```
 
 
@@ -511,3 +526,15 @@ kable(Mean_Human_Impact)
 ```{r,echo=TRUE}
 kable(economic_summary)
 ```
+
+```{r,echo=TRUE}
+## plot of total human impact by event type
+barchart(cleaned_EVTYPE~Total_Human_Impact,data=Mean_Human_Impact)
+```
+
+
+```{r,echo=TRUE,fig.cap="Figure 2: Total Economic Damage by Event Type"}
+## plot of total economic damage by event type
+barchart(new_event~Sum_Total_DMG,data=economic_summary)
+```
+
