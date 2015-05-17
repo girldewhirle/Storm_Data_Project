@@ -25,6 +25,7 @@ library("lubridate")
 library("knitr")
 library("stringr")
 library("ggplot2")
+library("reshape")
 ```
 
 Start from presumption that data is already in working director and read into workspace.
@@ -489,6 +490,14 @@ The mapping table for cleaning the event types in the economic data is:
 ```{r,echo=TRUE}
 kable(arrange(economic_merge,EVTYPE),caption="Merge Table for Cleaning EVTYPE for Economic Data")
 ```
+
+```{r,echo=TRUE}
+## melt data to allow for multi series plots
+human_top_melted<-melt(top_human_impact,id=c("EVTYPE","BGN_DATE","REFNUM"))
+## melt summary table as well
+melted_mean_human<-melt(Mean_Human_Impact,id.vars = "cleaned_EVTYPE")
+```
+
 
 ## Results
 
