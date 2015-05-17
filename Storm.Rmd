@@ -36,25 +36,13 @@ storm_data<-read.csv("Stormdata",header=TRUE)
 storm_data$BGN_DATE<-mdy_hms(storm_data$BGN_DATE)
 ```
 
-For ease of cleanse and analysis the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.
+For ease of cleanse and analysis, and to better answer the individual questions, the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.
 
 *Human Impact*
 
 ```{r,echo=TRUE}
 ## filter based on fatalities or injuries != 0
 human<-filter(storm_data,FATALITIES!=0|INJURIES!=0)
-## create table of unique event types from the human data set
-unique_human<-as.data.frame(table(human$EVTYPE))
-## remove instances that have frequency of zero
-unique_human<-filter(unique_human,Freq!=0)
-## arrange in descending frequency as will start running functions based on most common types
-unique_human<-arrange(unique_human,desc(Freq))
-## rename column
-colnames(unique_human)[1]<-"Event"
-## convert Event column to character
-unique_human$Event<-as.character(unique_human$Event)
-## convert Event column to upper case
-unique_human$Event<-toupper(unique_human$Event)
 ```
 
 *Economic Impact*
@@ -72,7 +60,6 @@ A number of helper functions were created to run against the EVTYPE data to stan
 A variable of the 48 standard values from the [National Weather Service Storm Data Documentation] (https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
 
 This was then used in a helper function during analysis to identify progress in standardising values.
-
 
 ```{r,echo=TRUE}
 ## create variable of standard event values from documentation
@@ -93,12 +80,11 @@ check_if_std<-function(event_type){
 
 The functions were written individually based on the standard values so that the order they are applied to the different data subsets can be varied and, if some of the standard values do not exist in any subset then the function is not required at all.
 
-
 ```{r,echo=TRUE}
 ## create number of helper functions to clean event types
 flood<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl(" fld",event_type,ignore.case=TRUE))&!(grepl("coastal",event_type,ignore.case=TRUE)|grepl("flash",event_type,ignore.case=TRUE))
+  flood_check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl(" fld",event_type,ignore.case=TRUE))&!(grepl("coastal",event_type,ignore.case=TRUE)|grepl("flash",event_type,ignore.case=TRUE)|grepl("cstl",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Flood"
     return(out)
@@ -118,7 +104,7 @@ heavy_rain<-function(event_type){
 
 coastal_flood<-function(event_type){
   out<-event_type
-  check<-grepl("flood",event_type,ignore.case=TRUE)&grepl("coastal",event_type,ignore.case=TRUE)
+  check<-grepl("flood",event_type,ignore.case=TRUE)&(grepl("coastal",event_type,ignore.case=TRUE)|grepl("cstl",event_type,ignore.case=TRUE))
   if (check==TRUE){
     out<-"Coastal Flood"
     return(out)
@@ -361,9 +347,11 @@ convert_exp<-function(value){
 }
 ```
 
-For human data the number of fatalities and injuries per event were added together.  The cutoff value for the top 1% of total human impact was calculated using the quantile function.  The human data was then subset into events where the total human impact was greater than the 1% cut off to give the top 1% of events by human impact.
+For human data the number of fatalities and injuries per event were added together to give a total value per event for human impact.  Weighting of fatalities was considered so that events with the same total human impact but with higher fatalities were considered to have more of an impact.  However, this was not carried out as it was deemed arbitary and would distort the results.
 
-For economic data the exponential values were converted to numerical values (K=1,000, M=1,000,000, B=1,000,000,000) and then used to multiply their respective property and crop damage values.  These numerical values were then added together to give a total amount of economic damage for each event.  The cutoff value for the top 1% of total economic impact was calculated using the quantile function.  The economic data was then subset into events where the total economic impact was greater than the 1% cut off to give the top 1% of events by economic impact.
+The cutoff value for the top 1% of total human impact was calculated using the quantile function.  The human data was then subset into events where the total human impact was greater than the 1% cut off to give the top 1% of events by human impact.  This was done to effectively be able to answer the question 'Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?' the top 1% of events by total impact were considered.
+
+For economic data the exponential values were converted to numerical values (K=1,000, M=1,000,000, B=1,000,000,000) and then used to multiply their respective property and crop damage values.  These numerical values were then added together to give a total amount of economic damage for each event.  The cutoff value for the top 1% of total economic impact was calculated using the quantile function.  The economic data was then subset into events where the total economic impact was greater than the 1% cut off to give the top 1% of events by economic impact.  This was done to be able to effectively answer the question 'Across the United States, which types of events have the greatest economic consequences?' by considering the events which cause the most economic impact.
 
 From the two 'top 1%' subsets - human and economic - tables of unique event types and their frequencies were extracted.
 
@@ -490,7 +478,21 @@ colnames(economic_summary)[7]<-"Mean_Total_DMG"
 economic_summary<-arrange(economic_summary,desc(Sum_Total_DMG))
 ```
 
+The mapping table for cleaning the event types in the human data is:
+
+```{r,echo=TRUE}
+kable(unique_top_human)
+```
+
+The mapping table for cleaning the event types in the economic data is:
+
+```{r,echo=TRUE}
+kable(arrange(economic_merge,EVTYPE),caption="Merge Table for Cleaning EVTYPE for Economic Data")
+```
+
 ## Results
+
+Using cleaned data tables containing the events that cause the most human and economic damage.
 
 ```{r,echo=TRUE}
 ## display table

@@ -100,25 +100,17 @@ library(&quot;lubridate&quot;)</code></pre>
 <pre><code>## Warning: package 'knitr' was built under R version 3.1.3</code></pre>
 <pre class="r"><code>library(&quot;stringr&quot;)</code></pre>
 <pre><code>## Warning: package 'stringr' was built under R version 3.1.3</code></pre>
+<pre class="r"><code>library(&quot;ggplot2&quot;)</code></pre>
+<pre><code>## Warning: package 'ggplot2' was built under R version 3.1.3</code></pre>
 <p>Start from presumption that data is already in working director and read into workspace.</p>
 <pre class="r"><code>## read in data
-storm_data&lt;-read.csv(&quot;Stormdata&quot;,header=TRUE)</code></pre>
-<p>For ease of cleanse and analysis the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.</p>
+storm_data&lt;-read.csv(&quot;Stormdata&quot;,header=TRUE)
+## convert BGN_Date to date formate
+storm_data$BGN_DATE&lt;-mdy_hms(storm_data$BGN_DATE)</code></pre>
+<p>For ease of cleanse and analysis, and to better answer the individual questions, the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.</p>
 <p><em>Human Impact</em></p>
 <pre class="r"><code>## filter based on fatalities or injuries != 0
-human&lt;-filter(storm_data,FATALITIES!=0|INJURIES!=0)
-## create table of unique event types from the human data set
-unique_human&lt;-as.data.frame(table(human$EVTYPE))
-## remove instances that have frequency of zero
-unique_human&lt;-filter(unique_human,Freq!=0)
-## arrange in descending frequency as will start running functions based on most common types
-unique_human&lt;-arrange(unique_human,desc(Freq))
-## rename column
-colnames(unique_human)[1]&lt;-&quot;Event&quot;
-## convert Event column to character
-unique_human$Event&lt;-as.character(unique_human$Event)
-## convert Event column to upper case
-unique_human$Event&lt;-toupper(unique_human$Event)</code></pre>
+human&lt;-filter(storm_data,FATALITIES!=0|INJURIES!=0)</code></pre>
 <p><em>Economic Impact</em></p>
 <pre class="r"><code>## create data set where property or crop damage != 0
 economic&lt;-filter(storm_data,PROPDMG!=0|CROPDMG!=0)</code></pre>
@@ -143,7 +135,7 @@ check_if_std&lt;-function(event_type){
 <pre class="r"><code>## create number of helper functions to clean event types
 flood&lt;-function(event_type){
   out&lt;-event_type
-  flood_check&lt;-(grepl(&quot;flood&quot;,event_type,ignore.case=TRUE)|grepl(&quot; fld&quot;,event_type,ignore.case=TRUE))&amp;!(grepl(&quot;coastal&quot;,event_type,ignore.case=TRUE)|grepl(&quot;flash&quot;,event_type,ignore.case=TRUE))
+  flood_check&lt;-(grepl(&quot;flood&quot;,event_type,ignore.case=TRUE)|grepl(&quot; fld&quot;,event_type,ignore.case=TRUE))&amp;!(grepl(&quot;coastal&quot;,event_type,ignore.case=TRUE)|grepl(&quot;flash&quot;,event_type,ignore.case=TRUE)|grepl(&quot;cstl&quot;,event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out&lt;-&quot;Flood&quot;
     return(out)
@@ -163,7 +155,7 @@ heavy_rain&lt;-function(event_type){
 
 coastal_flood&lt;-function(event_type){
   out&lt;-event_type
-  check&lt;-grepl(&quot;flood&quot;,event_type,ignore.case=TRUE)&amp;grepl(&quot;coastal&quot;,event_type,ignore.case=TRUE)
+  check&lt;-grepl(&quot;flood&quot;,event_type,ignore.case=TRUE)&amp;(grepl(&quot;coastal&quot;,event_type,ignore.case=TRUE)|grepl(&quot;cstl&quot;,event_type,ignore.case=TRUE))
   if (check==TRUE){
     out&lt;-&quot;Coastal Flood&quot;
     return(out)
@@ -383,9 +375,34 @@ tropical_storm&lt;-function(event_type){
   }
   return(out)
 }</code></pre>
-<p>The helper functions were run in order of event frequency down the event table until all listed events had a matching standardised value. This was done on the human data and the economic data seperately.</p>
+<pre class="r"><code>## function to convert damage values to multiplier
+convert_exp&lt;-function(value){
+  out&lt;-1
+  value&lt;-as.character(value)
+  if (value==&quot;K&quot;|value==&quot;k&quot;){
+    out&lt;-1000
+    return(out)
+  }
+  if (value==&quot;M&quot;|value==&quot;m&quot;){
+    out&lt;-1000000
+    return(out)
+  }
+  if (value==&quot;B&quot;|value==&quot;b&quot;){
+    out&lt;-1000000000
+    return(out)
+  }
+  return(out)
+}</code></pre>
+<p>For human data the number of fatalities and injuries per event were added together to give a total value per event for human impact. Weighting of fatalities was considered so that events with the same total human impact but with higher fatalities were considered to have more of an impact. However, this was not carried out as it was deemed arbitary and would distort the results.</p>
+<p>The cutoff value for the top 1% of total human impact was calculated using the quantile function. The human data was then subset into events where the total human impact was greater than the 1% cut off to give the top 1% of events by human impact. This was done to effectively be able to answer the question ‘Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?’ the top 1% of events by total impact were considered.</p>
+<p>For economic data the exponential values were converted to numerical values (K=1,000, M=1,000,000, B=1,000,000,000) and then used to multiply their respective property and crop damage values. These numerical values were then added together to give a total amount of economic damage for each event. The cutoff value for the top 1% of total economic impact was calculated using the quantile function. The economic data was then subset into events where the total economic impact was greater than the 1% cut off to give the top 1% of events by economic impact. This was done to be able to effectively answer the question ‘Across the United States, which types of events have the greatest economic consequences?’ by considering the events which cause the most economic impact.</p>
+<p>From the two ‘top 1%’ subsets - human and economic - tables of unique event types and their frequencies were extracted.</p>
+<p>The helper functions were run on these tables in order of event frequency until all listed events had a matching standardised value. This was done on the human data and the economic data seperately.</p>
+<p>When all the values had been standardised (a helper function was used to run against the event types as they were cleansed to ascertain if they met the standards or not) the event mapping tables were tidied and then merged back into their respective ‘top 1%’ tables.</p>
+<p>The ‘top 1%’ tables with the standard event types were used as the clean data for analysis.</p>
+<p>Summary tables for human and economic impact were then created using the summarise function and used for presentation below.</p>
 <pre class="r"><code>## create subset only including event type, number of fatalities, number of injuries and reference number
-minimal_human&lt;-select(human,EVTYPE,FATALITIES,INJURIES,REFNUM)
+minimal_human&lt;-select(human,EVTYPE,BGN_DATE,FATALITIES,INJURIES,REFNUM)
 ## create variable which is a result of fatalities + injuries
 minimal_human&lt;-mutate(minimal_human,fat_plus_inj=FATALITIES+INJURIES)
 ## find value for top 1%
@@ -436,6 +453,485 @@ colnames(Mean_Human_Impact)[6]&lt;-&quot;Mean_Human_Impact&quot;
 colnames(Mean_Human_Impact)[7]&lt;-&quot;Total_Human_Impact&quot;
 ## arrange in desc order fatalities
 Mean_Human_Impact&lt;-arrange(Mean_Human_Impact,desc(Total_Human_Impact))</code></pre>
+<pre class="r"><code>## create subset of economic with only event type, damage values and refnum
+minimal_economic&lt;-select(economic,EVTYPE,BGN_DATE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP)
+## convert exp values to a numeric multiplier
+minimal_economic&lt;-mutate(minimal_economic,prop_multi=mapply(convert_exp,PROPDMGEXP),crop_multi=mapply(convert_exp,CROPDMGEXP))
+## calculate damage for property and crops
+minimal_economic&lt;-mutate(minimal_economic,prop_damage=PROPDMG*prop_multi,crop_damage=CROPDMG*crop_multi)
+## combine property and crop damage
+minimal_economic&lt;-mutate(minimal_economic,total_damage=prop_damage+crop_damage)
+## identify top 1% cut off
+top_damage&lt;-quantile(minimal_economic$total_damage,prob=0.99)
+## subset based on greater than cutoff
+economic_damage&lt;-filter(minimal_economic,total_damage&gt;top_damage)
+## create merge table based on unique values
+unique_economic_top&lt;-as.data.frame(table(economic_damage$EVTYPE))
+## remove zero occurances
+unique_economic_top&lt;-filter(unique_economic_top,Freq&gt;0)
+## sort by Freq
+unique_economic_top&lt;-arrange(unique_economic_top,desc(Freq))
+## convert Var1 to character
+unique_economic_top$Var1&lt;-as.character(unique_economic_top$Var1)
+## start applying helper functions in order - tornado, flood, flash flood, hail, drought(already standard), ice storm(already standard), tstm wind, hurricane, wildfire, extreme cold/wind chill,landslide, high winds, coastal flooding
+unique_economic_top&lt;-mutate(unique_economic_top,ev2=mapply(tornado,Var1))%&gt;%
+  mutate(ev3=mapply(flood,ev2))%&gt;%
+  mutate(ev4=mapply(flash_flood,ev3))%&gt;%
+  mutate(ev5=mapply(hail,ev4))%&gt;%
+  mutate(ev6=mapply(thunderstorm_wind,ev5))%&gt;%
+  mutate(ev7=mapply(hurricane,ev6))%&gt;%
+  mutate(ev8=mapply(wildfire,ev7))%&gt;%
+  mutate(ev9=mapply(extreme_cold,ev8))%&gt;%
+  mutate(ev10=mapply(landslide_debris_flow,ev9))%&gt;%
+  mutate(ev11=mapply(high_wind,ev10))%&gt;%
+  mutate(ev12=mapply(surge,ev11))%&gt;%
+  mutate(ev13=mapply(frost_freeze,ev12))%&gt;%
+  mutate(ev14=mapply(coastal_flood,ev13))%&gt;%
+  mutate(ev15=mapply(heavy_rain,ev14))%&gt;%
+  mutate(ev16=mapply(tropical_storm,ev15))
+## create table with original and revised values
+economic_merge&lt;-select(unique_economic_top,Var1,ev16)
+## rename column 1
+colnames(economic_merge)[1]&lt;-&quot;EVTYPE&quot;
+colnames(economic_merge)[2]&lt;-&quot;new_event&quot;
+## join with economic damage data set
+economic_table&lt;-join(economic_damage,economic_merge)</code></pre>
+<pre><code>## Joining by: EVTYPE</code></pre>
+<pre class="r"><code>## remove original event type
+economic_table&lt;-select(economic_table,new_event,BGN_DATE,PROPDMG:total_damage)
+## group by event type
+economic_table&lt;-group_by(economic_table,new_event)
+## create summary table
+economic_summary&lt;-summarise(economic_table,sum(prop_damage),mean(prop_damage),sum(crop_damage),mean(crop_damage),sum(total_damage),mean(total_damage))
+## rename columns
+colnames(economic_summary)[2]&lt;-&quot;Sum_Prop_DMG&quot;
+colnames(economic_summary)[3]&lt;-&quot;Mean_Prop_DMG&quot;
+colnames(economic_summary)[4]&lt;-&quot;Sum_Crop_DMG&quot;
+colnames(economic_summary)[5]&lt;-&quot;Mean_Crop_DMG&quot;
+colnames(economic_summary)[6]&lt;-&quot;Sum_Total_DMG&quot;
+colnames(economic_summary)[7]&lt;-&quot;Mean_Total_DMG&quot;
+## arrange by sum total damage
+economic_summary&lt;-arrange(economic_summary,desc(Sum_Total_DMG))</code></pre>
+<p>The mapping table for cleaning the event types in the human data is:</p>
+<pre class="r"><code>kable(unique_top_human)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">EVTYPE</th>
+<th align="left">cleaned_EVTYPE</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">TORNADO</td>
+<td align="left">Tornado</td>
+</tr>
+<tr class="even">
+<td align="left">EXCESSIVE HEAT</td>
+<td align="left">Excessive Heat</td>
+</tr>
+<tr class="odd">
+<td align="left">FLOOD</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="even">
+<td align="left">HEAT</td>
+<td align="left">HEAT</td>
+</tr>
+<tr class="odd">
+<td align="left">FLASH FLOOD</td>
+<td align="left">Flash Flood</td>
+</tr>
+<tr class="even">
+<td align="left">HURRICANE/TYPHOON</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="odd">
+<td align="left">BLIZZARD</td>
+<td align="left">BLIZZARD</td>
+</tr>
+<tr class="even">
+<td align="left">EXTREME COLD</td>
+<td align="left">Extreme Cold/Wind Chill</td>
+</tr>
+<tr class="odd">
+<td align="left">HAIL</td>
+<td align="left">HAIL</td>
+</tr>
+<tr class="even">
+<td align="left">HEAT WAVE</td>
+<td align="left">Excessive Heat</td>
+</tr>
+<tr class="odd">
+<td align="left">HEAVY SNOW</td>
+<td align="left">HEAVY SNOW</td>
+</tr>
+<tr class="even">
+<td align="left">ICE STORM</td>
+<td align="left">ICE STORM</td>
+</tr>
+<tr class="odd">
+<td align="left">TROPICAL STORM</td>
+<td align="left">TROPICAL STORM</td>
+</tr>
+<tr class="even">
+<td align="left">TSUNAMI</td>
+<td align="left">TSUNAMI</td>
+</tr>
+<tr class="odd">
+<td align="left">WILD FIRES</td>
+<td align="left">Wildfire</td>
+</tr>
+<tr class="even">
+<td align="left">WILDFIRE</td>
+<td align="left">Wildfire</td>
+</tr>
+<tr class="odd">
+<td align="left">WINTER STORM</td>
+<td align="left">WINTER STORM</td>
+</tr>
+<tr class="even">
+<td align="left">WINTER WEATHER</td>
+<td align="left">WINTER WEATHER</td>
+</tr>
+</tbody>
+</table>
+<p>The mapping table for cleaning the event types in the economic data is:</p>
+<pre class="r"><code>kable(arrange(economic_merge,EVTYPE),caption=&quot;Merge Table for Cleaning EVTYPE for Economic Data&quot;)</code></pre>
+<table>
+<caption>Merge Table for Cleaning EVTYPE for Economic Data</caption>
+<thead>
+<tr class="header">
+<th align="left">EVTYPE</th>
+<th align="left">new_event</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">AGRICULTURAL FREEZE</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="even">
+<td align="left">BLIZZARD</td>
+<td align="left">BLIZZARD</td>
+</tr>
+<tr class="odd">
+<td align="left">COASTAL FLOODING/EROSION</td>
+<td align="left">Coastal Flood</td>
+</tr>
+<tr class="even">
+<td align="left">COASTAL FLOOD</td>
+<td align="left">Coastal Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">COASTAL FLOODING</td>
+<td align="left">Coastal Flood</td>
+</tr>
+<tr class="even">
+<td align="left">COASTAL FLOODING/EROSION</td>
+<td align="left">Coastal Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">COLD AND WET CONDITIONS</td>
+<td align="left">Extreme Cold/Wind Chill</td>
+</tr>
+<tr class="even">
+<td align="left">Coastal Flood</td>
+<td align="left">Coastal Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">DAMAGING FREEZE</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="even">
+<td align="left">DROUGHT</td>
+<td align="left">DROUGHT</td>
+</tr>
+<tr class="odd">
+<td align="left">Damaging Freeze</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="even">
+<td align="left">EXCESSIVE HEAT</td>
+<td align="left">EXCESSIVE HEAT</td>
+</tr>
+<tr class="odd">
+<td align="left">EXCESSIVE WETNESS</td>
+<td align="left">Heavy Rain</td>
+</tr>
+<tr class="even">
+<td align="left">EXTREME COLD</td>
+<td align="left">Extreme Cold/Wind Chill</td>
+</tr>
+<tr class="odd">
+<td align="left">Early Frost</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="even">
+<td align="left">Erosion/Cstl Flood</td>
+<td align="left">Coastal Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">Extreme Cold</td>
+<td align="left">Extreme Cold/Wind Chill</td>
+</tr>
+<tr class="even">
+<td align="left">FLASH FLOOD</td>
+<td align="left">Flash Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">FLASH FLOOD/FLOOD</td>
+<td align="left">Flash Flood</td>
+</tr>
+<tr class="even">
+<td align="left">FLASH FLOODING</td>
+<td align="left">Flash Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">FLOOD</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="even">
+<td align="left">FLOOD/FLASH FLOOD</td>
+<td align="left">Flash Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">FLOOD/RAIN/WINDS</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="even">
+<td align="left">FLOODING</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">FREEZE</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="even">
+<td align="left">FROST</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="odd">
+<td align="left">FROST/FREEZE</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="even">
+<td align="left">HAIL</td>
+<td align="left">Hail</td>
+</tr>
+<tr class="odd">
+<td align="left">HAILSTORM</td>
+<td align="left">Hail</td>
+</tr>
+<tr class="even">
+<td align="left">HARD FREEZE</td>
+<td align="left">Frost/Freeze</td>
+</tr>
+<tr class="odd">
+<td align="left">HEAT</td>
+<td align="left">HEAT</td>
+</tr>
+<tr class="even">
+<td align="left">HEAVY RAIN</td>
+<td align="left">Heavy Rain</td>
+</tr>
+<tr class="odd">
+<td align="left">HEAVY RAIN/SEVERE WEATHER</td>
+<td align="left">Heavy Rain</td>
+</tr>
+<tr class="even">
+<td align="left">HEAVY RAINS</td>
+<td align="left">Heavy Rain</td>
+</tr>
+<tr class="odd">
+<td align="left">HEAVY SNOW</td>
+<td align="left">HEAVY SNOW</td>
+</tr>
+<tr class="even">
+<td align="left">HIGH SURF</td>
+<td align="left">HIGH SURF</td>
+</tr>
+<tr class="odd">
+<td align="left">HIGH WIND</td>
+<td align="left">High Wind</td>
+</tr>
+<tr class="even">
+<td align="left">HIGH WINDS</td>
+<td align="left">High Wind</td>
+</tr>
+<tr class="odd">
+<td align="left">HIGH WINDS/COLD</td>
+<td align="left">Extreme Cold/Wind Chill</td>
+</tr>
+<tr class="even">
+<td align="left">HURRICANE</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="odd">
+<td align="left">HURRICANE EMILY</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="even">
+<td align="left">HURRICANE ERIN</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="odd">
+<td align="left">HURRICANE OPAL</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="even">
+<td align="left">HURRICANE OPAL/HIGH WINDS</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="odd">
+<td align="left">HURRICANE/TYPHOON</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="even">
+<td align="left">Heavy Rain/High Surf</td>
+<td align="left">Heavy Rain</td>
+</tr>
+<tr class="odd">
+<td align="left">ICE STORM</td>
+<td align="left">ICE STORM</td>
+</tr>
+<tr class="even">
+<td align="left">LAKE-EFFECT SNOW</td>
+<td align="left">LAKE-EFFECT SNOW</td>
+</tr>
+<tr class="odd">
+<td align="left">LANDSLIDE</td>
+<td align="left">Debris Flow</td>
+</tr>
+<tr class="even">
+<td align="left">LIGHTNING</td>
+<td align="left">LIGHTNING</td>
+</tr>
+<tr class="odd">
+<td align="left">MAJOR FLOOD</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="even">
+<td align="left">RECORD COLD</td>
+<td align="left">Extreme Cold/Wind Chill</td>
+</tr>
+<tr class="odd">
+<td align="left">RIVER FLOOD</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="even">
+<td align="left">River Flooding</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">SEVERE THUNDERSTORM</td>
+<td align="left">Thunderstorm Wind</td>
+</tr>
+<tr class="even">
+<td align="left">SEVERE THUNDERSTORM WINDS</td>
+<td align="left">Thunderstorm Wind</td>
+</tr>
+<tr class="odd">
+<td align="left">SEVERE THUNDERSTORMS</td>
+<td align="left">Thunderstorm Wind</td>
+</tr>
+<tr class="even">
+<td align="left">STORM SURGE</td>
+<td align="left">STORM SURGE/TIDE</td>
+</tr>
+<tr class="odd">
+<td align="left">STORM SURGE/TIDE</td>
+<td align="left">STORM SURGE/TIDE</td>
+</tr>
+<tr class="even">
+<td align="left">STRONG WIND</td>
+<td align="left">STRONG WIND</td>
+</tr>
+<tr class="odd">
+<td align="left">THUNDERSTORM WIND</td>
+<td align="left">Thunderstorm Wind</td>
+</tr>
+<tr class="even">
+<td align="left">THUNDERSTORM WINDS</td>
+<td align="left">Thunderstorm Wind</td>
+</tr>
+<tr class="odd">
+<td align="left">TORNADO</td>
+<td align="left">Tornado</td>
+</tr>
+<tr class="even">
+<td align="left">TORNADOES, TSTM WIND, HAIL</td>
+<td align="left">Tornado</td>
+</tr>
+<tr class="odd">
+<td align="left">TROPICAL STORM</td>
+<td align="left">Tropical Storm</td>
+</tr>
+<tr class="even">
+<td align="left">TROPICAL STORM JERRY</td>
+<td align="left">Tropical Storm</td>
+</tr>
+<tr class="odd">
+<td align="left">TSTM WIND</td>
+<td align="left">Thunderstorm Wind</td>
+</tr>
+<tr class="even">
+<td align="left">TSTM WIND/HAIL</td>
+<td align="left">Hail</td>
+</tr>
+<tr class="odd">
+<td align="left">TSUNAMI</td>
+<td align="left">TSUNAMI</td>
+</tr>
+<tr class="even">
+<td align="left">TYPHOON</td>
+<td align="left">Hurricane (Typhoon)</td>
+</tr>
+<tr class="odd">
+<td align="left">UNSEASONABLY COLD</td>
+<td align="left">Extreme Cold/Wind Chill</td>
+</tr>
+<tr class="even">
+<td align="left">URBAN/SML STREAM FLD</td>
+<td align="left">Flood</td>
+</tr>
+<tr class="odd">
+<td align="left">WATERSPOUT/TORNADO</td>
+<td align="left">Tornado</td>
+</tr>
+<tr class="even">
+<td align="left">WILD FIRES</td>
+<td align="left">Wildfire</td>
+</tr>
+<tr class="odd">
+<td align="left">WILD/FOREST FIRE</td>
+<td align="left">Wildfire</td>
+</tr>
+<tr class="even">
+<td align="left">WILDFIRE</td>
+<td align="left">Wildfire</td>
+</tr>
+<tr class="odd">
+<td align="left">WILDFIRES</td>
+<td align="left">Wildfire</td>
+</tr>
+<tr class="even">
+<td align="left">WINTER STORM</td>
+<td align="left">WINTER STORM</td>
+</tr>
+<tr class="odd">
+<td align="left">WINTER STORM HIGH WINDS</td>
+<td align="left">High Wind</td>
+</tr>
+<tr class="even">
+<td align="left">WINTER WEATHER</td>
+<td align="left">WINTER WEATHER</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="results" class="section level2">
+<h2>Results</h2>
 <pre class="r"><code>## display table
 kable(Mean_Human_Impact)</code></pre>
 <table>
@@ -597,83 +1093,6 @@ kable(Mean_Human_Impact)</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>## function to convert damage values to multiplier
-convert_exp&lt;-function(value){
-  out&lt;-1
-  value&lt;-as.character(value)
-  if (value==&quot;K&quot;|value==&quot;k&quot;){
-    out&lt;-1000
-    return(out)
-  }
-  if (value==&quot;M&quot;|value==&quot;m&quot;){
-    out&lt;-1000000
-    return(out)
-  }
-  if (value==&quot;B&quot;|value==&quot;b&quot;){
-    out&lt;-1000000000
-    return(out)
-  }
-  return(out)
-}</code></pre>
-<pre class="r"><code>## create subset of economic with only event type, damage values and refnum
-minimal_economic&lt;-select(economic,EVTYPE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP)
-## convert exp values to a numeric multiplier
-minimal_economic&lt;-mutate(minimal_economic,prop_multi=mapply(convert_exp,PROPDMGEXP),crop_multi=mapply(convert_exp,CROPDMGEXP))
-## calculate damage for property and crops
-minimal_economic&lt;-mutate(minimal_economic,prop_damage=PROPDMG*prop_multi,crop_damage=CROPDMG*crop_multi)
-## combine property and crop damage
-minimal_economic&lt;-mutate(minimal_economic,total_damage=prop_damage+crop_damage)
-## identify top 1% cut off
-top_damage&lt;-quantile(minimal_economic$total_damage,prob=0.99)
-## subset based on greater than cutoff
-economic_damage&lt;-filter(minimal_economic,total_damage&gt;top_damage)
-## create merge table based on unique values
-unique_economic_top&lt;-as.data.frame(table(economic_damage$EVTYPE))
-## remove zero occurances
-unique_economic_top&lt;-filter(unique_economic_top,Freq&gt;0)
-## sort by Freq
-unique_economic_top&lt;-arrange(unique_economic_top,desc(Freq))
-## convert Var1 to character
-unique_economic_top$Var1&lt;-as.character(unique_economic_top$Var1)
-## start applying helper functions in order - tornado, flood, flash flood, hail, drought(already standard), ice storm(already standard), tstm wind, hurricane, wildfire, extreme cold/wind chill,landslide, high winds, coastal flooding
-unique_economic_top&lt;-mutate(unique_economic_top,ev2=mapply(tornado,Var1))%&gt;%
-  mutate(ev3=mapply(flood,ev2))%&gt;%
-  mutate(ev4=mapply(flash_flood,ev3))%&gt;%
-  mutate(ev5=mapply(hail,ev4))%&gt;%
-  mutate(ev6=mapply(thunderstorm_wind,ev5))%&gt;%
-  mutate(ev7=mapply(hurricane,ev6))%&gt;%
-  mutate(ev8=mapply(wildfire,ev7))%&gt;%
-  mutate(ev9=mapply(extreme_cold,ev8))%&gt;%
-  mutate(ev10=mapply(landslide_debris_flow,ev9))%&gt;%
-  mutate(ev11=mapply(high_wind,ev10))%&gt;%
-  mutate(ev12=mapply(surge,ev11))%&gt;%
-  mutate(ev13=mapply(frost_freeze,ev12))%&gt;%
-  mutate(ev14=mapply(coastal_flood,ev13))%&gt;%
-  mutate(ev15=mapply(heavy_rain,ev14))%&gt;%
-  mutate(ev16=mapply(tropical_storm,ev15))
-## create table with original and revised values
-economic_merge&lt;-select(unique_economic_top,Var1,ev16)
-## rename column 1
-colnames(economic_merge)[1]&lt;-&quot;EVTYPE&quot;
-colnames(economic_merge)[2]&lt;-&quot;new_event&quot;
-## join with economic damage data set
-economic_table&lt;-join(economic_damage,economic_merge)</code></pre>
-<pre><code>## Joining by: EVTYPE</code></pre>
-<pre class="r"><code>## remove original event type
-economic_table&lt;-select(economic_table,new_event,PROPDMG:total_damage)
-## group by event type
-economic_table&lt;-group_by(economic_table,new_event)
-## create summary table
-economic_summary&lt;-summarise(economic_table,sum(prop_damage),mean(prop_damage),sum(crop_damage),mean(crop_damage),sum(total_damage),mean(total_damage))
-## rename columns
-colnames(economic_summary)[2]&lt;-&quot;Sum_Prop_DMG&quot;
-colnames(economic_summary)[3]&lt;-&quot;Mean_Prop_DMG&quot;
-colnames(economic_summary)[4]&lt;-&quot;Sum_Crop_DMG&quot;
-colnames(economic_summary)[5]&lt;-&quot;Mean_Crop_DMG&quot;
-colnames(economic_summary)[6]&lt;-&quot;Sum_Total_DMG&quot;
-colnames(economic_summary)[7]&lt;-&quot;Mean_Total_DMG&quot;
-## arrange by sum total damage
-economic_summary&lt;-arrange(economic_summary,desc(Sum_Total_DMG))</code></pre>
 <pre class="r"><code>kable(economic_summary)</code></pre>
 <table>
 <thead>
@@ -690,12 +1109,12 @@ economic_summary&lt;-arrange(economic_summary,desc(Sum_Total_DMG))</code></pre>
 <tbody>
 <tr class="odd">
 <td align="left">Flood</td>
-<td align="right">145250909100</td>
-<td align="right">361320669</td>
+<td align="right">145236709100</td>
+<td align="right">362186307</td>
 <td align="right">10169178000</td>
-<td align="right">2.529646e+07</td>
-<td align="right">155420087100</td>
-<td align="right">386617132</td>
+<td align="right">2.535955e+07</td>
+<td align="right">155405887100</td>
+<td align="right">387545853</td>
 </tr>
 <tr class="even">
 <td align="left">Hurricane (Typhoon)</td>
@@ -870,12 +1289,12 @@ economic_summary&lt;-arrange(economic_summary,desc(Sum_Total_DMG))</code></pre>
 </tr>
 <tr class="odd">
 <td align="left">Coastal Flood</td>
-<td align="right">349010000</td>
-<td align="right">24929286</td>
+<td align="right">363210000</td>
+<td align="right">24214000</td>
 <td align="right">50000</td>
-<td align="right">3.571429e+03</td>
-<td align="right">349060000</td>
-<td align="right">24932857</td>
+<td align="right">3.333333e+03</td>
+<td align="right">363260000</td>
+<td align="right">24217333</td>
 </tr>
 <tr class="even">
 <td align="left">Debris Flow</td>
