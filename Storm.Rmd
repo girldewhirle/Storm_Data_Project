@@ -4,6 +4,7 @@ author: "girldewhirle"
 date: "Monday, May 11, 2015"
 output: html_document
 ---
+## Title: Evaluation of Population Health and Economic Damage Caused by Storms and Severe Weather in United States
 
 ## Synopsis
 
@@ -29,7 +30,9 @@ library("reshape2")
 library("lattice")
 ```
 
-Start from presumption that data is already in working directory and read into workspace.
+Raw data was accessed from (include link)
+
+The transformation of the code starts from the presumption that raw data is already in working directory.  The data is read into workspace as follows.
 
 ```{r,echo=TRUE}
 ## read in data
@@ -42,12 +45,16 @@ For ease of cleanse and analysis, and to better answer the individual questions,
 
 *Human Impact*
 
+Human impact records were subsetted on the basis that either they caused greater than zero fatalities OR they caused greater than zero injuries.
+
 ```{r,echo=TRUE}
 ## filter based on fatalities or injuries != 0
 human<-filter(storm_data,FATALITIES!=0|INJURIES!=0)
 ```
 
 *Economic Impact*
+
+Economic impact (damage) records were subsetted on the basis that either the PROPDMG (property damage) field was greater than zero OR that the CROPDMG (crop damage) field was greater than zero.
 
 ```{r,echo=TRUE}
 ## create data set where property or crop damage != 0
@@ -61,7 +68,7 @@ A number of helper functions were created to run against the EVTYPE data to stan
 
 A variable of the 48 standard values from the [National Weather Service Storm Data Documentation] (https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
 
-This was then used in a helper function during analysis to identify progress in standardising values.
+This was then used in a helper function (check_if)std) during analysis to identify progress in standardising values.  This function is not required to reproduce this analysis - it was run during original exploratory work to identify if/when EVTYPE values had been standardised - but it is included here for sake of completion.
 
 ```{r,echo=TRUE}
 ## create variable of standard event values from documentation
@@ -80,7 +87,7 @@ check_if_std<-function(event_type){
 
 ```
 
-The functions were written individually based on the standard values so that the order they are applied to the different data subsets can be varied and, if some of the standard values do not exist in any subset then the function is not required at all.
+The functions below were written individually based on one or more standard values so that the order they are applied to the different data subsets can be varied and, if some of the standard values do not exist in any subset then the function is not required at all.
 
 ```{r,echo=TRUE}
 ## create number of helper functions to clean event types
@@ -328,6 +335,8 @@ tropical_storm<-function(event_type){
 }
 ```
 
+The function below is to convert the exponential values in the PROPDMGEXP and CROPDMGEXP fields to a numerical value.  For the values in those variables, if they did not equal K, M or B (or k, m or b) the multiplier was returned as 1.
+
 ```{r,echo=TRUE}
 ## function to convert damage values to multiplier
 convert_exp<-function(value){
@@ -348,6 +357,8 @@ convert_exp<-function(value){
   return(out)
 }
 ```
+
+*Application of EVTYPE standards*
 
 For human data the number of fatalities and injuries per event were added together to give a total value per event for human impact.  Weighting of fatalities was considered so that events with the same total human impact but with higher fatalities were considered to have more of an impact.  However, this was not carried out as it was deemed arbitary and would distort the results.
 
