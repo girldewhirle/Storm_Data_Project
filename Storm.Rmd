@@ -28,6 +28,7 @@ library("stringr")
 library("ggplot2")
 library("reshape2")
 library("lattice")
+library("gridExtra")
 ```
 
 Raw data was accessed from (include link)
@@ -524,7 +525,6 @@ economic_summary<-as.data.frame(economic_summary)
 melted_economic_summary<-melt(economic_summary,id.vars = "new_event")
 ```
 
-
 ## Results
 
 Using cleaned data tables containing the events that cause the most human and economic damage.
@@ -540,12 +540,22 @@ kable(economic_summary)
 
 ```{r,echo=TRUE}
 ## plot of total human impact by event type
-barchart(cleaned_EVTYPE~Total_Human_Impact,data=Mean_Human_Impact)
+human_plot_object<-ggplot(data=Mean_Human_Impact,aes(cleaned_EVTYPE,Total_Human_Impact))
+## create object to plot as bar with text changed to read easier
+hpo<-human_plot_object + geom_bar(stat="identity",colour="green",fill="blue") + theme(axis.text.x = element_text(angle = 90, hjust = 1))+xlab("Severe Weather Event Type")+ylab("Total Human Impact")+ggtitle("Total Human Damage by Weather Event Type")
 ```
 
 
 ```{r,echo=TRUE,fig.cap="Figure 2: Total Economic Damage by Event Type"}
 ## plot of total economic damage by event type
-barchart(new_event~Sum_Total_DMG,data=economic_summary)
+## economic plot object
+economic_plot_object<-ggplot(data=economic_summary,aes(new_event,Sum_Total_DMG))
+## create object to plot as bar with text changed to read easier
+epo<-economic_plot_object + geom_bar(stat="identity",colour="red",fill="yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1))+xlab("Severe Weather Event Type") + ylab("Sum of Total Economic Damage") + ggtitle("Total Economic Damage by Weather Event Type")
+
+```
+
+```{r,echo=TRUE,fig.cap="Figure One: Total Human and Economic Power by Weather Event Types"}
+grid.arrange(hpo,epo,ncol=2)
 ```
 
