@@ -72,7 +72,7 @@ economic<-filter(storm_data,PROPDMG!=0|CROPDMG!=0)
 
 A number of helper functions were created to run against the EVTYPE data to standardise the values.
 
-A variable of the 48 standard values from the [National Weather Service Storm Data Documentation] (https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+A variable of the 48 standard values from the [National Weather Service Storm Data Documentation] (https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) was created and converted to upper case.
 
 This was then used in a helper function (check_if)std) during analysis to identify progress in standardising values.  This function is not required to reproduce this analysis - it was run during original exploratory work to identify if/when EVTYPE values had been standardised - but it is included here for sake of completion.
 
