@@ -1,8 +1,9 @@
 ---
-title: "Evaluation of Population Health and Economic Damage caused by Storms and Severe Weather"
+title: Evaluation of Population Health and Economic Damage caused by Storms and Severe
+  Weather
 author: "girldewhirle"
 date: "Monday, May 11, 2015"
-output: html_document
+output: pdf_document
 ---
 ## Title: Evaluation of Population Health and Economic Damage Caused by Storms and Severe Weather in United States
 
@@ -13,13 +14,7 @@ This analysis is to assess the impact, both in terms of human fatalities/injurie
 - Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
 - Across the United States, which types of events have the greatest economic consequences?
 
-Population Health was considered to include events that caused human fatalities or injuries.  Economic consequences was considered to include events that had caused damage to property or crops (estimates of actual dollar amounts).
-
 ## Data Processing
-
-** Session Info**
-
-To do: run sessionInfo() and include details in here.
 
 Load libraries required for data cleanse and analysis
 
@@ -52,15 +47,16 @@ For ease of cleanse and analysis, and to better answer the individual questions,
 
 *Human Impact*
 
-Human impact records were subsetted on the basis that either they caused greater than zero fatalities OR they caused greater than zero injuries.  Records that did not meet these criteria were excluded as they have no bearing on answering the question about impact to population health/human impact.
+Human impact records were subsetted on the basis that either they caused greater than zero fatalities OR they caused greater than zero injuries.
 
 ```{r,echo=TRUE}
 ## filter based on fatalities or injuries != 0
 human<-filter(storm_data,FATALITIES!=0|INJURIES!=0)
 ```
+
 *Economic Impact*
 
-Economic impact (damage) records were subsetted on the basis that either the PROPDMG (property damage) field was greater than zero OR that the CROPDMG (crop damage) field was greater than zero.  Records that did not meet these criteria were excluded as they have no bearing on answering the question about economic damage.
+Economic impact (damage) records were subsetted on the basis that either the PROPDMG (property damage) field was greater than zero OR that the CROPDMG (crop damage) field was greater than zero.
 
 ```{r,echo=TRUE}
 ## create data set where property or crop damage != 0
@@ -72,7 +68,7 @@ economic<-filter(storm_data,PROPDMG!=0|CROPDMG!=0)
 
 A number of helper functions were created to run against the EVTYPE data to standardise the values.
 
-A variable of the 48 standard values from the [National Weather Service Storm Data Documentation] (https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) was created and converted to upper case.
+A variable of the 48 standard values from the [National Weather Service Storm Data Documentation] (https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
 
 This was then used in a helper function (check_if)std) during analysis to identify progress in standardising values.  This function is not required to reproduce this analysis - it was run during original exploratory work to identify if/when EVTYPE values had been standardised - but it is included here for sake of completion.
 
@@ -341,7 +337,7 @@ tropical_storm<-function(event_type){
 }
 ```
 
-The function below is to convert the exponential values in the PROPDMGEXP and CROPDMGEXP fields to a numerical value so the total dollar amount of damage can be calculated.  For the values in those variables, if they did not equal K, M or B (or k, m or b) the multiplier was returned as 1.
+The function below is to convert the exponential values in the PROPDMGEXP and CROPDMGEXP fields to a numerical value.  For the values in those variables, if they did not equal K, M or B (or k, m or b) the multiplier was returned as 1.
 
 ```{r,echo=TRUE}
 ## function to convert damage values to multiplier
@@ -368,7 +364,19 @@ convert_exp<-function(value){
 
 For human data the number of fatalities and injuries per event were added together to give a total value per event for human impact.  Weighting of fatalities was considered so that events with the same total human impact but with higher fatalities were considered to have more of an impact.  However, this was not carried out as it was deemed arbitary and would distort the results.
 
-The cutoff value for the top 1% of total human impact was calculated using the quantile function.  The human data was then subset into events where the total human impact was greater than the 1% cut off to give the top 1% of events by human impact.  This was done to effectively be able to answer the question 'Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?' the top 1% of events by total impact were considered.  It was deemed that as the question was asking about which event types caused the most damage, only the events causing the most impact (top 1%) would be considered.
+The cutoff value for the top 1% of total human impact was calculated using the quantile function.  The human data was then subset into events where the total human impact was greater than the 1% cut off to give the top 1% of events by human impact.  This was done to effectively be able to answer the question 'Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?' the top 1% of events by total impact were considered.
+
+For economic data the exponential values were converted to numerical values (K=1,000, M=1,000,000, B=1,000,000,000) and then used to multiply their respective property and crop damage values.  These numerical values were then added together to give a total amount of economic damage for each event.  The cutoff value for the top 1% of total economic impact was calculated using the quantile function.  The economic data was then subset into events where the total economic impact was greater than the 1% cut off to give the top 1% of events by economic impact.  This was done to be able to effectively answer the question 'Across the United States, which types of events have the greatest economic consequences?' by considering the events which cause the most economic impact.
+
+From the two 'top 1%' subsets - human and economic - tables of unique event types and their frequencies were extracted.
+
+The helper functions were run on these tables in order of event frequency until all listed events had a matching standardised value.  This was done on the human data and the economic data seperately.
+
+When all the values had been standardised (a helper function was used to run against the event types as they were cleansed to ascertain if they met the standards or not) the event mapping tables were tidied and then merged back into their respective 'top 1%' tables.
+
+The 'top 1%' tables with the standard event types were used as the clean data for analysis.
+
+Summary tables for human and economic impact were then created using the summarise function and used for presentation below.
 
 ```{r,echo=TRUE}
 ## create subset only including event type, number of fatalities, number of injuries and reference number
@@ -423,9 +431,6 @@ colnames(Mean_Human_Impact)[7]<-"Total_Human_Impact"
 ## arrange in desc order fatalities
 Mean_Human_Impact<-arrange(Mean_Human_Impact,desc(Total_Human_Impact))
 ```
-
-
-For economic data the exponential values were converted to numerical values (K=1,000, M=1,000,000, B=1,000,000,000) and then used to multiply their respective property and crop damage values.  These numerical values were then added together to give a total amount of economic damage for each event.  The cutoff value for the top 1% of total economic impact was calculated using the quantile function.  The economic data was then subset into events where the total economic impact was greater than the 1% cut off to give the top 1% of events by economic impact.  This was done to be able to effectively answer the question 'Across the United States, which types of events have the greatest economic consequences?' by considering the events which cause the most economic impact.  It was deemed that as the question was asking about which event types caused the greatest economic consequence, only the events causing the most impact (top 1%) would be considered.
 
 ```{r,echo=TRUE}
 ## create subset of economic with only event type, damage values and refnum
@@ -520,15 +525,6 @@ economic_summary<-as.data.frame(economic_summary)
 ## melt data
 melted_economic_summary<-melt(economic_summary,id.vars = "new_event")
 ```
-As is seen in the code above, for the two 'top 1%' subsets - human and economic - tables of unique event types and their frequencies were extracted.
-
-The event type helper functions were run on these tables in order of event frequency until all listed events had a matching standardised value.  This was done on the human data and the economic data seperately.
-
-When all the values had been standardised (a helper function was used to run against the event types as they were cleansed to ascertain if they met the standards or not) the event mapping tables were tidied and then merged back into their respective 'top 1%' tables.
-
-The 'top 1%' tables with the standard event types were used as the clean data for analysis.
-
-Summary tables for human and economic impact were then created using the summarise function and are included in the results section.
 
 ## Results
 
@@ -543,8 +539,6 @@ kable(Mean_Human_Impact)
 kable(economic_summary)
 ```
 
-Plot objects were created in ggplot2 and then combined into a single figure.
-
 ```{r,echo=TRUE}
 ## plot of total human impact by event type
 human_plot_object<-ggplot(data=Mean_Human_Impact,aes(cleaned_EVTYPE,Total_Human_Impact))
@@ -552,15 +546,16 @@ human_plot_object<-ggplot(data=Mean_Human_Impact,aes(cleaned_EVTYPE,Total_Human_
 hpo<-human_plot_object + geom_bar(stat="identity",colour="green",fill="blue") + theme(axis.text.x = element_text(angle = 90, hjust = 1))+xlab("Severe Weather Event Type")+ylab("Total Human Impact")+ggtitle("Total Human Damage by Weather Event Type")
 ```
 
-```{r,echo=TRUE}
+
+```{r,echo=TRUE,fig.cap="Figure 2: Total Economic Damage by Event Type"}
 ## plot of total economic damage by event type
 ## economic plot object
 economic_plot_object<-ggplot(data=economic_summary,aes(new_event,Sum_Total_DMG))
 ## create object to plot as bar with text changed to read easier
 epo<-economic_plot_object + geom_bar(stat="identity",colour="red",fill="yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1))+xlab("Severe Weather Event Type") + ylab("Sum of Total Economic Damage") + ggtitle("Total Economic Damage by Weather Event Type")
+
 ```
 
 ```{r,echo=TRUE,fig.cap="Figure One: Total Human and Economic Power by Weather Event Types"}
 grid.arrange(hpo,epo,ncol=2)
 ```
-
