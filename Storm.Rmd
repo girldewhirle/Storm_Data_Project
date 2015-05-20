@@ -3,7 +3,7 @@ title: Evaluation of Population Health and Economic Damage caused by Storms and 
   Weather
 author: "girldewhirle"
 date: "Monday, May 11, 2015"
-output: pdf_document
+output: html_document
 ---
 ## Title: Evaluation of Population Health and Economic Damage Caused by Storms and Severe Weather in United States
 
@@ -15,6 +15,8 @@ This analysis is to assess the impact, both in terms of human fatalities/injurie
 - Across the United States, which types of events have the greatest economic consequences?
 
 ## Data Processing
+
+Find latest date and then do last ten years.
 
 Load libraries required for data cleanse and analysis
 
@@ -42,6 +44,36 @@ storm_data<-read.csv("Stormdata",header=TRUE)
 ## convert BGN_Date to date formate
 storm_data$BGN_DATE<-mdy_hms(storm_data$BGN_DATE)
 ```
+
+***crop out old event types***
+
+It is believed that there are fewer records for earlier years and that later years have better reporting of severe weather events.  Reviewing the frequency of the instances of reported events in the data over time it is possible to see that the number of events reported increases significantly over time.  Therefore, to give more consistent results, a ten year period from the most recent date is used as the data set to analyse.
+
+```{r,echo=TRUE}
+## created table of unique dates
+unique_dates<-as.data.frame(table(storm_data$BGN_DATE))
+```
+
+```{r,echo=TRUE,fig.cap="Figure One - Frequency of reported severe weather events by date"}
+qplot(Var1, Freq, data=unique_dates)
+```
+
+To identify the most recent event date the entire data set was sorted by the BGN_DATE variable.  The most recent date is then picked from the top the date 10 years ago identified.
+
+```{r,echo=TRUE}
+storm_data<-arrange(storm_data,desc(BGN_DATE))
+## identify most recent date
+most_recent_date<-storm_data[1,2]
+## 10 years ago
+ten_years_ago<-most_recent_date - years(10)
+```
+
+The data set was then subsetted into those events that occurred within the last ten years.
+
+```{r,echo=TRUE}
+storm_data<-filter(storm_data,(BGN_DATE>=ten_years_ago)&(BGN_DATE<=most_recent_date))
+```
+
 
 For ease of cleanse and analysis, and to better answer the individual questions, the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.
 
