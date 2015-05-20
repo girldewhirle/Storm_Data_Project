@@ -3,13 +3,12 @@ title: Evaluation of Population Health and Economic Damage caused by Storms and 
   Weather
 author: "girldewhirle"
 date: "Monday, May 11, 2015"
-output: html_document
+output: pdf_document
 ---
-## Title: Evaluation of Population Health and Economic Damage Caused by Storms and Severe Weather in United States
 
 ## Synopsis
 
-This analysis is to assess the impact, both in terms of human fatalities/injuries and economic damage, that extreme weather events cause in the US.  The data for this analysis was obtained from [U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database](U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database).  The analysis focuses on answering two questions:  
+This analysis is to assess the impact, both in terms of human fatalities/injuries and economic damage, that extreme weather events cause in the US.  The data for this analysis was obtained from [U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database]("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2").  The analysis focuses on answering two questions:  
 
 - Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
 - Across the United States, which types of events have the greatest economic consequences?
@@ -20,8 +19,8 @@ Find latest date and then do last ten years.
 
 Load libraries required for data cleanse and analysis
 
-```{r,echo=TRUE}
-## load libraries
+```{r,echo=TRUE,warning=FALSE}
+## load libraries - warnings suppressed for this chunk only
 library("plyr")
 library("dplyr")
 library("tidyr")
@@ -34,7 +33,7 @@ library("lattice")
 library("gridExtra")
 ```
 
-Raw data was accessed from (include link)
+Raw data was accessed from https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
 
 The transformation of the code starts from the presumption that raw data is already in working directory.  The data is read into workspace as follows.
 
@@ -66,7 +65,8 @@ ten_years_ago<-most_recent_date - years(10)
 The data set was then subsetted into those events that occurred within the last ten years.
 
 ```{r,echo=TRUE}
-storm_data<-filter(storm_data,(BGN_DATE>=ten_years_ago)&(BGN_DATE<=most_recent_date))
+storm_data<-filter(storm_data,(BGN_DATE>=ten_years_ago)&
+                     (BGN_DATE<=most_recent_date))
 ```
 For analysis, to better answer the individual questions, the data was split into two main subsets: events causing human fatalities and/or injuries, and events causing economic damage.
 
@@ -99,7 +99,20 @@ This was then used in a helper function (check_if)std) during analysis to identi
 
 ```{r,echo=TRUE}
 ## create variable of standard event values from documentation
-standard_events<-c("Astronomical Low Tide","Avalanche","Blizzard","Coastal Flood","Cold/Wind Chill","Debris Flow","Dense Fog","Dense Smoke","Drought","Dust Devil","Dust Storm","Excessive Heat","Extreme Cold/Wind Chill","Flash Flood","Flood","Frost/Freeze","Funnel Cloud","Freezing Fog","Hail","Heat","Heavy Rain","Heavy Snow","High Surf","High Wind","Hurricane (Typhoon)","Ice Storm","Lake-Effect Snow","Lakeshore Flood","Lightning","Marine Hail","Marine High Wind","Marine Strong Wind","Marine Thunderstorm Wind","Rip Current","Seiche","Sleet","Storm Surge/Tide","Strong Wind","Thunderstorm Wind","Tornado","Tropical Depression","Tropical Storm","Tsunami","Volcanic Ash","Waterspout","Wildfire","Winter Storm","Winter Weather")
+standard_events<-c("Astronomical Low Tide","Avalanche","Blizzard",
+                   "Coastal Flood","Cold/Wind Chill","Debris Flow","Dense Fog",
+                   "Dense Smoke","Drought","Dust Devil","Dust Storm",
+                   "Excessive Heat","Extreme Cold/Wind Chill",
+                   "Flash Flood","Flood","Frost/Freeze","Funnel Cloud"
+                   ,"Freezing Fog","Hail","Heat","Heavy Rain","Heavy Snow",
+                   "High Surf","High Wind","Hurricane (Typhoon)","Ice Storm",
+                   "Lake-Effect Snow","Lakeshore Flood","Lightning",
+                   "Marine Hail","Marine High Wind","Marine Strong Wind",
+                   "Marine Thunderstorm Wind","Rip Current","Seiche","Sleet",
+                   "Storm Surge/Tide","Strong Wind","Thunderstorm Wind",
+                   "Tornado","Tropical Depression","Tropical Storm","Tsunami",
+                   "Volcanic Ash","Waterspout","Wildfire","Winter Storm",
+                   "Winter Weather")
 ## convert standards to upper case
 standard_events<-toupper(standard_events)
 ## create helper function to check if values are standardised sucessfully
@@ -120,7 +133,11 @@ The functions below were written individually based on one or more standard valu
 ## create number of helper functions to clean event types
 flood<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl(" fld",event_type,ignore.case=TRUE))&!(grepl("coastal",event_type,ignore.case=TRUE)|grepl("flash",event_type,ignore.case=TRUE)|grepl("cstl",event_type,ignore.case=TRUE))
+  flood_check<-(grepl("flood",event_type,ignore.case=TRUE)|
+                  grepl(" fld",event_type,ignore.case=TRUE))&!
+    (grepl("coastal",event_type,ignore.case=TRUE)|
+       grepl("flash",event_type,ignore.case=TRUE)|
+       grepl("cstl",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Flood"
     return(out)
@@ -130,7 +147,8 @@ flood<-function(event_type){
 
 heavy_rain<-function(event_type){
   out<-event_type
-  check<-grepl("rain",event_type,ignore.case=TRUE)|grepl("wetness",event_type,ignore.case=TRUE)
+  check<-grepl("rain",event_type,ignore.case=TRUE)|
+    grepl("wetness",event_type,ignore.case=TRUE)
   if (check==TRUE){
     out<-"Heavy Rain"
     return(out)
@@ -140,7 +158,9 @@ heavy_rain<-function(event_type){
 
 coastal_flood<-function(event_type){
   out<-event_type
-  check<-grepl("flood",event_type,ignore.case=TRUE)&(grepl("coastal",event_type,ignore.case=TRUE)|grepl("cstl",event_type,ignore.case=TRUE))
+  check<-grepl("flood",event_type,ignore.case=TRUE)&
+    (grepl("coastal",event_type,ignore.case=TRUE)|
+       grepl("cstl",event_type,ignore.case=TRUE))
   if (check==TRUE){
     out<-"Coastal Flood"
     return(out)
@@ -150,7 +170,9 @@ coastal_flood<-function(event_type){
 
 flash_flood<-function(event_type){
   out<-event_type
-  check<-(grepl("flood",event_type,ignore.case=TRUE)|grepl("fld",event_type,ignore.case=TRUE))&grepl("flash",event_type,ignore.case=TRUE)
+  check<-(grepl("flood",event_type,ignore.case=TRUE)|
+            grepl("fld",event_type,ignore.case=TRUE))&
+    grepl("flash",event_type,ignore.case=TRUE)
   if (check==TRUE){
     out<-"Flash Flood"
     return(out)
@@ -171,7 +193,8 @@ snow<-function(event_type){
 
 high_wind<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("high wind",event_type,ignore.case=TRUE)|grepl("gusty",event_type,ignore.case=TRUE))
+  flood_check<-(grepl("high wind",event_type,ignore.case=TRUE)|
+                  grepl("gusty",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"High Wind"
     return(out)
@@ -194,7 +217,11 @@ rip_current<-function(event_type){
 
 thunderstorm_wind<-function(event_type){
   out<-event_type
-  flood_check<-((grepl("thunderstorm wind",event_type,ignore.case=TRUE)|grepl("TSTM wind",event_type,ignore.case=TRUE)|grepl("thunder",event_type,ignore.case=TRUE)|grepl("microburst",event_type,ignore.case=TRUE))&!grepl("marine",event_type,ignore.case=TRUE))
+  flood_check<-((grepl("thunderstorm wind",event_type,ignore.case=TRUE)|
+                   grepl("TSTM wind",event_type,ignore.case=TRUE)|
+                   grepl("thunder",event_type,ignore.case=TRUE)|
+                   grepl("microburst",event_type,ignore.case=TRUE))&!
+                  grepl("marine",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Thunderstorm Wind"
     return(out)
@@ -205,7 +232,10 @@ thunderstorm_wind<-function(event_type){
 
 marine_thunderstorm_wind<-function(event_type){
   out<-event_type
-  flood_check<-((grepl("thunderstorm wind",event_type,ignore.case=TRUE)|grepl("TSTM wind",event_type,ignore.case=TRUE)|grepl("thunder",event_type,ignore.case=TRUE))&grepl("marine",event_type,ignore.case=TRUE))
+  flood_check<-((grepl("thunderstorm wind",event_type,ignore.case=TRUE)|
+                   grepl("TSTM wind",event_type,ignore.case=TRUE)|
+                   grepl("thunder",event_type,ignore.case=TRUE))&
+                  grepl("marine",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Marine Thunderstorm Wind"
     return(out)
@@ -216,7 +246,8 @@ marine_thunderstorm_wind<-function(event_type){
 
 tornado<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("tornado",event_type,ignore.case=TRUE)&!grepl("marine",event_type,ignore.case=TRUE))
+  flood_check<-(grepl("tornado",event_type,ignore.case=TRUE)&!
+                  grepl("marine",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Tornado"
     return(out)
@@ -227,7 +258,8 @@ tornado<-function(event_type){
 
 lightning<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("lightning",event_type,ignore.case=TRUE)&!grepl("marine",event_type,ignore.case=TRUE))
+  flood_check<-(grepl("lightning",event_type,ignore.case=TRUE)&!
+                  grepl("marine",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Lightning"
     return(out)
@@ -238,7 +270,8 @@ lightning<-function(event_type){
 
 excessive_heat<-function(event_type){
   out<-event_type
-  flood_check<-(grepl(" heat",event_type,ignore.case=TRUE))|grepl("heat wave",event_type,ignore.case=TRUE)
+  flood_check<-(grepl(" heat",event_type,ignore.case=TRUE))|
+    grepl("heat wave",event_type,ignore.case=TRUE)
   if (flood_check==TRUE){
     out<-"Excessive Heat"
     return(out)
@@ -258,7 +291,9 @@ wildfire<-function(event_type){
 
 landslide_debris_flow<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("slide",event_type,ignore.case=TRUE))|(grepl("debris",event_type,ignore.case=TRUE)&grepl("flow",event_type,ignore.case=TRUE))
+  flood_check<-(grepl("slide",event_type,ignore.case=TRUE))|
+    (grepl("debris",event_type,ignore.case=TRUE)&
+       grepl("flow",event_type,ignore.case=TRUE))
   if (flood_check==TRUE){
     out<-"Debris Flow"
     return(out)
@@ -266,9 +301,12 @@ landslide_debris_flow<-function(event_type){
   return(out)
 }
 
+## for extreme cold also including hypothermia
 extreme_cold<-function(event_type){
   out<-event_type
-  flood_check<-(grepl("cold",event_type,ignore.case=TRUE))|grepl("wind chill",event_type,ignore.case=TRUE)|grepl("hypoth",event_type,ignore.case=TRUE)
+  flood_check<-(grepl("cold",event_type,ignore.case=TRUE))|
+    grepl("wind chill",event_type,ignore.case=TRUE)|
+    grepl("hypoth",event_type,ignore.case=TRUE)
   if (flood_check==TRUE){
     out<-"Extreme Cold/Wind Chill"
     return(out)
@@ -293,7 +331,8 @@ fog<-function(event_type){
 
 winter_weather<-function(event_type){
   out<-event_type
-  check<-grepl("winter",event_type,ignore.case=TRUE)&grepl("weather",event_type,ignore.case=TRUE)
+  check<-grepl("winter",event_type,ignore.case=TRUE)&
+    grepl("weather",event_type,ignore.case=TRUE)
   if (check==TRUE){
     out<-"Winter Weather"
     return(out)
@@ -323,7 +362,8 @@ surge<-function(event_type){
 
 hail<-function(event_type){
   out<-event_type
-  check<-grepl("hail",event_type,ignore.case=TRUE)&!grepl("marine",event_type,ignore.case=TRUE)
+  check<-grepl("hail",event_type,ignore.case=TRUE)&!
+    grepl("marine",event_type,ignore.case=TRUE)
   if (check==TRUE){
     out<-"Hail"
     return(out)
@@ -333,7 +373,8 @@ hail<-function(event_type){
 
 hurricane<-function(event_type){
   out<-event_type
-  check<-grepl("cane",event_type,ignore.case=TRUE)|grepl("phoon",event_type,ignore.case=TRUE)
+  check<-grepl("cane",event_type,ignore.case=TRUE)|
+    grepl("phoon",event_type,ignore.case=TRUE)
   if (check==TRUE){
     out<-"Hurricane (Typhoon)"
     return(out)
@@ -343,7 +384,8 @@ hurricane<-function(event_type){
 
 frost_freeze<-function(event_type){
   out<-event_type
-  check<-grepl("freeze",event_type,ignore.case=TRUE)|grepl("frost",event_type,ignore.case=TRUE)
+  check<-grepl("freeze",event_type,ignore.case=TRUE)|
+    grepl("frost",event_type,ignore.case=TRUE)
   if (check==TRUE){
     out<-"Frost/Freeze"
     return(out)
@@ -353,7 +395,8 @@ frost_freeze<-function(event_type){
 
 tropical_storm<-function(event_type){
   out<-event_type
-  check<-grepl("tropical",event_type,ignore.case=TRUE)&grepl("storm",event_type,ignore.case=TRUE)
+  check<-grepl("tropical",event_type,ignore.case=TRUE)&
+    grepl("storm",event_type,ignore.case=TRUE)
   if (check==TRUE){
     out<-"Tropical Storm"
     return(out)
@@ -404,7 +447,8 @@ The 'top 1%' tables with the standard event types were used as the clean data fo
 Summary tables for human and economic impact were then created using the summarise function and used for presentation below.
 
 ```{r,echo=TRUE}
-## create subset only including event type, number of fatalities, number of injuries and reference number
+## create subset only including event type, number of fatalities, number of 
+## injuries and reference number
 minimal_human<-select(human,EVTYPE,BGN_DATE,FATALITIES,INJURIES,REFNUM)
 ## create variable which is a result of fatalities + injuries
 minimal_human<-mutate(minimal_human,fat_plus_inj=FATALITIES+INJURIES)
@@ -416,14 +460,16 @@ top_human_impact<-filter(minimal_human,fat_plus_inj>top_1_per_cutoff)
 unique_top_human<-as.data.frame(table(top_human_impact$EVTYPE))
 ## filter out zero frequencies
 unique_top_human<-filter(unique_top_human,Freq>0)
-## sort in descending order as will start to apply helper functions based on most frequent in top 1%
+## sort in descending order as will start to apply helper functions based on
+## most frequent in top 1%
 unique_top_human<-arrange(unique_top_human,desc(Freq))
 ## convert Var1 to character
 unique_top_human$Var1<-as.character(unique_top_human$Var1)
 
 ## start cleaning in following order
 ##tornado, excessive heat, flood, heat (not run), flash flood, hurricane/typhoon
-## at this point checked for remaining none standard values - only extreme cold and wildfire left
+## at this point checked for remaining none standard 
+## values - only extreme cold and wildfire left
 unique_top_human<-mutate(unique_top_human,ev2=mapply(tornado,Var1))%>%
   mutate(ev3=mapply(excessive_heat,ev2))%>%
   mutate(ev4=mapply(flood,ev3))%>%
@@ -439,12 +485,17 @@ colnames(unique_top_human)[2]<-"cleaned_EVTYPE"
 ## join with top % human impact file to get cleaned values
 minimal_cleaned_human<-join(top_human_impact,unique_top_human)
 ## trim table
-minimal_cleaned_human<-select(minimal_cleaned_human,cleaned_EVTYPE,FATALITIES:REFNUM,fat_plus_inj)
+minimal_cleaned_human<-select(minimal_cleaned_human,cleaned_EVTYPE,
+                              FATALITIES:REFNUM,fat_plus_inj)
 ## grouped by event type
 grouped_ev_type<-group_by(minimal_cleaned_human,cleaned_EVTYPE)
 ## summarise and get mean fatalities and mean injuries and also total(sum) values
 ## as integer for clarity
-Mean_Human_Impact<-summarise(grouped_ev_type,as.integer(mean(FATALITIES)),as.integer(mean(INJURIES)),as.integer(sum(FATALITIES)),as.integer(sum(INJURIES)),as.integer(mean(fat_plus_inj)),as.integer(sum(fat_plus_inj)))
+Mean_Human_Impact<-summarise(grouped_ev_type,as.integer(mean(FATALITIES)),
+                             as.integer(mean(INJURIES)),as.integer
+                             (sum(FATALITIES)),as.integer(sum(INJURIES)),
+                             as.integer(mean(fat_plus_inj)),
+                             as.integer(sum(fat_plus_inj)))
 
 ## rename columns
 colnames(Mean_Human_Impact)[2]<-"Mean_Fatalities"
@@ -459,11 +510,15 @@ Mean_Human_Impact<-arrange(Mean_Human_Impact,desc(Total_Human_Impact))
 
 ```{r,echo=TRUE}
 ## create subset of economic with only event type, damage values and refnum
-minimal_economic<-select(economic,EVTYPE,BGN_DATE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP,REFNUM)
+minimal_economic<-select(economic,EVTYPE,BGN_DATE,PROPDMG,
+                         PROPDMGEXP,CROPDMG,CROPDMGEXP,REFNUM)
 ## convert exp values to a numeric multiplier
-minimal_economic<-mutate(minimal_economic,prop_multi=mapply(convert_exp,PROPDMGEXP),crop_multi=mapply(convert_exp,CROPDMGEXP))
+minimal_economic<-mutate(minimal_economic,
+                         prop_multi=mapply(convert_exp,PROPDMGEXP),
+                         crop_multi=mapply(convert_exp,CROPDMGEXP))
 ## calculate damage for property and crops
-minimal_economic<-mutate(minimal_economic,prop_damage=PROPDMG*prop_multi,crop_damage=CROPDMG*crop_multi)
+minimal_economic<-mutate(minimal_economic,prop_damage=PROPDMG*prop_multi,
+                         crop_damage=CROPDMG*crop_multi)
 ## combine property and crop damage
 minimal_economic<-mutate(minimal_economic,total_damage=prop_damage+crop_damage)
 ## identify top 1% cut off
@@ -478,7 +533,10 @@ unique_economic_top<-filter(unique_economic_top,Freq>0)
 unique_economic_top<-arrange(unique_economic_top,desc(Freq))
 ## convert Var1 to character
 unique_economic_top$Var1<-as.character(unique_economic_top$Var1)
-## start applying helper functions in order - tornado, flood, flash flood, hail, drought(already standard), ice storm(already standard), tstm wind, hurricane, wildfire, extreme cold/wind chill,landslide, high winds, coastal flooding
+## start applying helper functions in order - tornado, flood, flash flood, hail,
+## drought(already standard), ice storm(already standard), tstm wind,
+## hurricane, wildfire, extreme cold/wind chill,landslide, high winds,
+## coastal flooding
 unique_economic_top<-mutate(unique_economic_top,ev2=mapply(tornado,Var1))%>%
   mutate(ev3=mapply(flood,ev2))%>%
   mutate(ev4=mapply(flash_flood,ev3))%>%
@@ -506,7 +564,9 @@ economic_table<-select(economic_table,new_event,BGN_DATE,PROPDMG:total_damage)
 ## group by event type
 economic_table<-group_by(economic_table,new_event)
 ## create summary table
-economic_summary<-summarise(economic_table,sum(prop_damage),mean(prop_damage),sum(crop_damage),mean(crop_damage),sum(total_damage),mean(total_damage))
+economic_summary<-summarise(economic_table,sum(prop_damage),mean(prop_damage),
+                            sum(crop_damage),mean(crop_damage),
+                            sum(total_damage),mean(total_damage))
 ## rename columns
 colnames(economic_summary)[2]<-"Sum_Prop_DMG"
 colnames(economic_summary)[3]<-"Mean_Prop_DMG"
@@ -521,13 +581,15 @@ economic_summary<-arrange(economic_summary,desc(Sum_Total_DMG))
 The mapping table for cleaning the event types in the human data is:
 
 ```{r,echo=TRUE}
-kable(arrange(unique_top_human,EVTYPE),caption="Merge Table for Cleaning EVTYPE for Human Data")
+kable(arrange(unique_top_human,EVTYPE),
+      caption="Merge Table for Cleaning EVTYPE for Human Data")
 ```
 
 The mapping table for cleaning the event types in the economic data is:
 
 ```{r,echo=TRUE}
-kable(arrange(economic_merge,EVTYPE),caption="Merge Table for Cleaning EVTYPE for Economic Data")
+kable(arrange(economic_merge,EVTYPE),
+      caption="Merge Table for Cleaning EVTYPE for Economic Data")
 ```
 
 ```{r,echo=TRUE}
@@ -544,7 +606,8 @@ melted_human_impact<-melt(Mean_Human_Impact,id.vars="cleaned_EVTYPE")
 ## need to convert to data frame first
 economic_table<-as.data.frame(economic_table)
 ## melt data
-melted_economic_table<-melt(economic_table,id.vars=c("new_event","BGN_DATE","REFNUM"))
+melted_economic_table<-melt(economic_table,
+                            id.vars=c("new_event","BGN_DATE","REFNUM"))
 ## convert economic summary to data frame
 economic_summary<-as.data.frame(economic_summary)
 ## melt data
@@ -566,9 +629,13 @@ kable(economic_summary)
 
 ```{r,echo=TRUE}
 ## plot of total human impact by event type
-human_plot_object<-ggplot(data=Mean_Human_Impact,aes(cleaned_EVTYPE,Total_Human_Impact))
+human_plot_object<-ggplot(data=Mean_Human_Impact,
+                          aes(cleaned_EVTYPE,Total_Human_Impact))
 ## create object to plot as bar with text changed to read easier
-hpo<-human_plot_object + geom_bar(stat="identity",colour="green",fill="blue") + theme(axis.text.x = element_text(angle = 90, hjust = 1))+xlab("Severe Weather Event Type")+ylab("Total Human Impact")+ggtitle("Total Human Damage by Weather Event Type")
+hpo<-human_plot_object + geom_bar(stat="identity",colour="green",fill="blue") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  xlab("Severe Weather Event Type")+ylab("Total Human Impact")+
+  ggtitle("Total Human Damage by Weather Event Type")
 ```
 
 
@@ -577,11 +644,15 @@ hpo<-human_plot_object + geom_bar(stat="identity",colour="green",fill="blue") + 
 ## economic plot object
 economic_plot_object<-ggplot(data=economic_summary,aes(new_event,Sum_Total_DMG))
 ## create object to plot as bar with text changed to read easier
-epo<-economic_plot_object + geom_bar(stat="identity",colour="red",fill="yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1))+xlab("Severe Weather Event Type") + ylab("Sum of Total Economic Damage") + ggtitle("Total Economic Damage by Weather Event Type")
+epo<-economic_plot_object + 
+  geom_bar(stat="identity",colour="red",fill="yellow") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  xlab("Severe Weather Event Type") + ylab("Sum of Total Economic Damage") + 
+  ggtitle("Total Economic Damage by Weather Event Type")
 
 ```
 
-```{r,echo=TRUE,fig.cap="Figure One: Total Human and Economic Power by Weather Event Types"}
+```{r,echo=TRUE,fig.cap="Figure Two: Total Human and Economic Power by Weather Event Types"}
 grid.arrange(hpo,epo,ncol=2)
 ```
 
