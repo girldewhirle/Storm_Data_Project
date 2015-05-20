@@ -584,3 +584,19 @@ epo<-economic_plot_object + geom_bar(stat="identity",colour="red",fill="yellow")
 ```{r,echo=TRUE,fig.cap="Figure One: Total Human and Economic Power by Weather Event Types"}
 grid.arrange(hpo,epo,ncol=2)
 ```
+
+**Summary**
+
+On the basis of the analysis the following conclusions have been drawn.
+
+The following event types cause the most human impact (measured by total injuries and fatalities for all instances of the event type in the human data subset):
+
+- Tornado
+- Excessive Heat
+- Hurricane (Typhoon)
+
+The following event types cause the most economic impact (measured by total property and crop damage for all instances of the event type in the economic data subset):
+
+- Flood
+- Hurricane (Typhoon)
+- Storm Surge/Tide
