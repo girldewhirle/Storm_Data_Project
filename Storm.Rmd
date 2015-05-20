@@ -653,7 +653,9 @@ epo<-economic_plot_object +
 ```
 
 ```{r,echo=TRUE,fig.cap="Figure Two: Total Human and Economic Power by Weather Event Types"}
-grid.arrange(hpo,epo,ncol=2)
+hpo
+
+epo
 ```
 
 **Summary**
