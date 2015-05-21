@@ -45,16 +45,6 @@ storm_data$BGN_DATE<-mdy_hms(storm_data$BGN_DATE)
 ```
 It is believed that there are fewer records for earlier years and that later years have better reporting of severe weather events.  Reviewing the frequency of the instances of reported events in the data over time it is possible to see that the number of events reported increases significantly over time.  Therefore, to give more consistent results, a ten year period from the most recent date is used as the data set to analyse.
 
-```{r,echo=TRUE}
-## created table of unique dates
-unique_dates<-as.data.frame(table(storm_data$BGN_DATE))
-## convert BGN_Date to date formate
-storm_data$BGN_DATE<-mdy_hms(storm_data$BGN_DATE)
-```
-
-```{r,echo=TRUE,fig.cap="Figure One - Frequency of reported severe weather events by Year"}
-qplot(year,Freq,data=unique_dates)
-```
 To identify the most recent event date the entire data set was sorted by the BGN_DATE variable.  The most recent date is then picked from the top the date 10 years ago identified.
 
 ```{r,echo=TRUE}
@@ -654,9 +644,14 @@ epo<-economic_plot_object +
 
 ```
 
-```{r,echo=TRUE,fig.cap="Figure Two: Total Human and Economic Power by Weather Event Types"}
-hpo
+Figure One: Total Human Impact by Weather Event Types
 
+```{r,echo=TRUE,fig.cap="Figure Two: Total Economic Impact by Weather Event Types"}
+hpo
+```
+Figure Two: Total Economic Impact by Weather Event Types
+
+```{r,echo=TRUE}
 epo
 ```
 
